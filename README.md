@@ -38,7 +38,7 @@ Any host that runs `npm start` and provides `PORT` works. With Railway:
 railway up
 ```
 
-Merging a pull request into `main` deploys automatically: `.github/workflows/deploy.yml` runs the tests and then `railway up`. It needs a Railway project token saved as the `RAILWAY_TOKEN` repository secret.
+Merging a pull request into `main` deploys automatically: the Railway service is connected to this repository and builds every push to `main`.
 
 Run a single instance: games in progress are kept in memory, so they are lost on restart and can't be shared across replicas. Accounts and finished games live in Postgres.
 
