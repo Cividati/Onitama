@@ -70,16 +70,18 @@
   </header>
 
   <main id="lobby" hidden>
-    <div id="lobby-main">
-      <div id="pools" aria-label="Quick pairing">
-        <button class="pool" data-tc="3+2"><span class="tc">3+2</span><span class="perf">Blitz</span></button>
-        <button class="pool" data-tc="5+0"><span class="tc">5+0</span><span class="perf">Blitz</span></button>
-        <button class="pool" data-tc="10+0"><span class="tc">10+0</span><span class="perf">Rapid</span></button>
-      </div>
-      <p id="pool-note"></p>
+    <div id="lobby-side">
+      <div id="spotlights"></div>
+      <p class="about-side">Onitama Online is a free, no-ads, <a href="https://github.com/Cividati/Onitama" target="_blank" rel="noopener">open source</a> Onitama server. <span id="pool-note"></span></p>
+    </div>
 
-      <section class="box" id="live">
-        <h2>Live games</h2>
+    <div id="lobby-app">
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="pools" class="active" aria-selected="true">Quick pairing</button>
+        <button role="tab" data-tab="live" aria-selected="false">Live games</button>
+      </div>
+      <div id="pools" aria-label="Quick pairing"></div>
+      <section id="live" hidden>
         <table>
           <thead>
             <tr><th>Players</th><th>Time</th><th>Mode</th><th>Move</th><th>Watching</th><th></th></tr>
@@ -90,24 +92,60 @@
       </section>
     </div>
 
-    <aside id="lobby-side">
-      <button id="create" class="big-button">Play with a friend</button>
-      <button id="play-bot" class="big-button">Play with the computer</button>
+    <div id="lobby-table">
+      <div id="lobby-start">
+        <button id="create" class="big-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.5"/><path d="M3 21c.8-5 4.2-7.5 9-7.5s8.2 2.5 9 7.5z"/></svg>
+          Play with a friend
+        </button>
+        <button id="play-bot" class="big-button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="5" y="5" width="14" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+          Play with the computer
+        </button>
+        <a id="lobby-tournaments" class="big-button" href="/?tournaments" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v2h4v3a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V19h3v2H8v-2h3v-3.1A5 5 0 0 1 7.6 13 5 5 0 0 1 3 8V5h4zm0 4H5v1a3 3 0 0 0 2 2.8zm10 0v3.8A3 3 0 0 0 19 8V7z"/></svg>
+          Tournaments
+        </a>
+      </div>
       <p id="lobby-error" class="error" role="alert"></p>
-      <div class="box" id="leaderboard" hidden>
-        <h2>Leaderboard</h2>
-        <ol id="leaders"></ol>
+      <div id="lobby-counters">
+        <span><strong id="count-online">–</strong> players</span>
+        <span><strong id="count-playing">–</strong> games in play</span>
       </div>
-      <div class="box howto">
-        <h2>How to play</h2>
-        <ul>
-          <li>On your turn pick one of your two cards, then move any of your pieces to a square the card shows (relative to the light centre square).</li>
-          <li>Landing on an enemy piece captures it. You can't land on your own pieces.</li>
-          <li>The card you used becomes the spare; you take the previous spare, and your opponent gets yours after their move.</li>
-          <li><strong>Win</strong> by capturing the enemy master (crown), or by moving your master onto the enemy temple — the ringed square in the middle of their home row.</li>
-        </ul>
-      </div>
-    </aside>
+    </div>
+
+    <a id="lobby-tv" class="mini-game">
+      <span class="mini-player"><span class="who" id="tv-top"></span><span class="mini-clock" id="tv-top-clock"></span></span>
+      <span class="mini-board" id="tv-board"></span>
+      <span class="mini-player"><span class="who" id="tv-bottom"></span><span class="mini-clock" id="tv-bottom-clock"></span></span>
+    </a>
+
+    <div class="box howto" id="lobby-feed">
+      <h2>How to play</h2>
+      <ul>
+        <li>On your turn pick one of your two cards, then move any of your pieces to a square the card shows (relative to the light centre square).</li>
+        <li>Landing on an enemy piece captures it. You can't land on your own pieces.</li>
+        <li>The card you used becomes the spare; you take the previous spare, and your opponent gets yours after their move.</li>
+        <li><strong>Win</strong> by capturing the enemy master (crown), or by moving your master onto the enemy temple — the ringed square in the middle of their home row.</li>
+      </ul>
+    </div>
+
+    <div id="leaderboard" hidden>
+      <span class="caption">Leaderboard</span>
+      <ol id="leaders" class="box"></ol>
+    </div>
+
+    <div id="lobby-footer">
+      <a href="/?tournaments" id="footer-tournaments" hidden>Tournaments</a>
+      <a href="https://github.com/Cividati/Onitama" target="_blank" rel="noopener">Source code</a>
+      <a href="https://en.wikipedia.org/wiki/Onitama" target="_blank" rel="noopener">About Onitama</a>
+    </div>
+
+    <section class="box" id="lobby-tours" hidden>
+      <div class="tours-head"><span>Open tournaments</span><a href="/?tournaments">More »</a></div>
+      <table><tbody id="lobby-tours-list"></tbody></table>
+      <p id="lobby-tours-empty">No open tournaments. <a href="/?tournaments">Create one »</a></p>
+    </section>
   </main>
 
   <main id="profile" hidden>
@@ -268,9 +306,6 @@
       <label>Time control
         <select id="friend-tc">
           <option value="">Unlimited</option>
-          <option>3+2</option>
-          <option>5+0</option>
-          <option>10+0</option>
         </select>
       </label>
       <fieldset>
@@ -300,9 +335,6 @@
       <label>Time control
         <select id="bot-tc">
           <option value="">Unlimited</option>
-          <option>3+2</option>
-          <option>5+0</option>
-          <option>10+0</option>
         </select>
       </label>
       <p class="note">Games against the computer are never rated.</p>
@@ -321,11 +353,7 @@
         <input id="tournament-form-name" required minlength="3" maxlength="40" autocomplete="off">
       </label>
       <label>Time control
-        <select id="tournament-form-tc">
-          <option>3+2</option>
-          <option>5+0</option>
-          <option>10+0</option>
-        </select>
+        <select id="tournament-form-tc"></select>
       </label>
       <label>Duration
         <select id="tournament-form-minutes">

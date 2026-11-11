@@ -12,13 +12,14 @@ const db = require('./lib/db');
 const accounts = require('./lib/accounts');
 const bot = require('./lib/bot');
 const tournaments = require('./lib/tournaments');
-const { json, readJson, sseHeaders } = require('./lib/http');
+const { json, readJson, sseHeaders, clientIp } = require('./lib/http');
 
 const { other } = Onitama;
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_ROOMS = 2000;
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
+const VISITOR_TTL_MS = 15 * 1000; // a lobby visitor counts as online this long after a poll
 const CHAT_KEEP = 100;
 const CHAT_MAX_LENGTH = 200;
 const NAME = { red: 'Red', blue: 'Blue' };
@@ -27,9 +28,17 @@ const FIRST_MOVE_MS = 30 * 1000; // time to make the first move of a tournament 
 
 // Seconds on the clock at the start, and seconds added after each move.
 const TIME_CONTROLS = {
+  '1+0': { initial: 60, increment: 0 },
+  '2+1': { initial: 120, increment: 1 },
+  '3+0': { initial: 180, increment: 0 },
   '3+2': { initial: 180, increment: 2 },
   '5+0': { initial: 300, increment: 0 },
+  '5+3': { initial: 300, increment: 3 },
   '10+0': { initial: 600, increment: 0 },
+  '10+5': { initial: 600, increment: 5 },
+  '15+10': { initial: 900, increment: 10 },
+  '30+0': { initial: 1800, increment: 0 },
+  '30+20': { initial: 1800, increment: 20 },
 };
 
 const STATIC = {
@@ -45,6 +54,8 @@ const STATIC = {
 const rooms = new Map();
 // time control -> { res, user } of the one player waiting to be paired
 const seekers = new Map();
+// address and browser of a lobby visitor -> when they last polled
+const visitors = new Map();
 
 function newCode() {
   for (;;) {
@@ -255,6 +266,20 @@ function openEvents(req, res, room, token) {
   });
 }
 
+// People on the site right now: whoever polled the lobby lately, plus everyone
+// connected to a room.
+function onlineCount(req) {
+  const now = Date.now();
+  visitors.set(`${clientIp(req)} ${req.headers['user-agent']}`, now);
+  let count = 0;
+  for (const [key, seen] of visitors) {
+    if (now - seen > VISITOR_TTL_MS) visitors.delete(key);
+    else count++;
+  }
+  for (const room of rooms.values()) count += room.clients.size;
+  return count;
+}
+
 // Games in progress that the lobby offers for spectating: both seats taken,
 // not finished, and at least one player still connected.
 function liveGames() {
@@ -270,11 +295,17 @@ function liveGames() {
       tc: room.tc,
       moveCount: room.game.moveCount,
       turn: room.game.turn,
+      board: room.game.board,
+      last: room.game.last && { from: room.game.last.from, to: room.game.last.to },
+      clock: room.clock && {
+        remaining: { red: timeLeft(room.clock, 'red'), blue: timeLeft(room.clock, 'blue') },
+        running: room.clock.running,
+      },
       spectators,
       touched: room.touched,
     });
   }
-  return games.sort((a, b) => b.touched - a.touched).slice(0, 50);
+  return games.sort((a, b) => b.touched - a.touched);
 }
 
 // ---------- quick pairing ----------
@@ -438,7 +469,10 @@ async function handleApi(req, res, url) {
   if (parts[1] !== 'rooms' || parts.length > 4) return json(res, 404, { error: 'Not found' });
 
   if (parts.length === 2) {
-    if (req.method === 'GET') return json(res, 200, { games: liveGames() });
+    if (req.method === 'GET') {
+      const games = liveGames();
+      return json(res, 200, { games: games.slice(0, 50), playing: games.length, online: onlineCount(req) });
+    }
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' });
     if (rooms.size >= MAX_ROOMS) return json(res, 503, { error: 'Server is full, try again later' });
     const body = await readJson(req);

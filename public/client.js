@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  const { CARDS, TEMPLE, other, movesFor, legalMoves } = Onitama;
+  const { CARDS, TEMPLE, other, newGame, movesFor, legalMoves } = Onitama;
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   let room = (params.get('room') || '').toUpperCase();
@@ -394,8 +394,24 @@
 
   // ---------- lobby ----------
 
+  // Time controls offered for quick pairing, friends, the computer and tournaments.
+  const POOLS = [
+    ['1+0', 'Bullet'], ['2+1', 'Bullet'], ['3+0', 'Blitz'],
+    ['3+2', 'Blitz'], ['5+0', 'Blitz'], ['5+3', 'Blitz'],
+    ['10+0', 'Rapid'], ['10+5', 'Rapid'], ['15+10', 'Rapid'],
+    ['30+0', 'Classical'], ['30+20', 'Classical'],
+  ];
+
+  function fillTimeControls() {
+    for (const id of ['friend-tc', 'bot-tc', 'tournament-form-tc']) {
+      for (const [tc, perf] of POOLS) $(id).add(new Option(`${tc} ${perf}`, tc));
+    }
+    $('tournament-form-tc').value = '3+2';
+  }
+
   let seek = null; // { tc, button, events } while waiting to be paired
-  let lobbyTimer = null;
+  let lobbyTimers = [];
+  let tv = null; // { game, at } the live game on the lobby's small board
 
   function showLobby(error) {
     $('lobby').hidden = false;
@@ -405,11 +421,35 @@
       : account
         ? 'Quick pairing is rated when your opponent is signed in too.'
         : 'Sign in to play rated games and keep your match history.';
-    refreshLobby();
-    lobbyTimer = setInterval(refreshLobby, 5000);
-    for (const button of document.querySelectorAll('.pool')) {
+    for (const [tc, perf] of POOLS) {
+      const button = document.createElement('button');
+      button.className = 'pool';
+      button.dataset.tc = tc;
+      button.innerHTML = '<span class="tc"></span><span class="perf"></span>';
+      button.children[0].textContent = tc;
+      button.children[1].textContent = perf;
       button.addEventListener('click', () => toggleSeek(button));
+      $('pools').appendChild(button);
     }
+    const custom = document.createElement('button');
+    custom.className = 'pool custom';
+    custom.id = 'pool-custom';
+    custom.textContent = 'Custom';
+    $('pools').appendChild(custom);
+    for (const tab of document.querySelectorAll('#lobby-app .tabs button')) {
+      tab.addEventListener('click', () => {
+        for (const other of tab.parentNode.children) {
+          other.classList.toggle('active', other === tab);
+          other.setAttribute('aria-selected', other === tab);
+        }
+        $('pools').hidden = tab.dataset.tab !== 'pools';
+        $('live').hidden = tab.dataset.tab !== 'live';
+      });
+    }
+    $('lobby-tournaments').hidden = $('footer-tournaments').hidden = $('lobby-tours').hidden = !accountsOn;
+    refreshLive();
+    refreshLobby();
+    lobbyTimers = [setInterval(refreshLive, 3000), setInterval(refreshLobby, 15000), setInterval(renderTvClocks, 500)];
     bindFriendDialog();
     bindBotDialog();
   }
@@ -417,7 +457,7 @@
   // Moves from the lobby or a tournament into a room without a page load, so the
   // click that started it still counts as the interaction browsers require for sound.
   function enterRoom(code) {
-    clearInterval(lobbyTimer);
+    lobbyTimers.forEach(clearInterval);
     clearInterval(tourTimer);
     if (seek) seek.events.close();
     if (tourEvents) tourEvents.close();
@@ -471,10 +511,12 @@
     for (const radio of document.querySelectorAll('#friend-form input[name="cards"]')) {
       radio.addEventListener('change', refresh);
     }
-    $('create').addEventListener('click', () => {
-      refresh();
-      $('friend-dialog').showModal();
-    });
+    for (const opener of [$('create'), $('pool-custom')]) {
+      opener.addEventListener('click', () => {
+        refresh();
+        $('friend-dialog').showModal();
+      });
+    }
     $('friend-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -504,9 +546,10 @@
     });
   }
 
+  // The slower-moving parts of the lobby: leaderboard and tournaments.
   async function refreshLobby() {
-    refreshLive();
     if (!accountsOn) return;
+    refreshTournaments();
     try {
       const { players } = await request('GET', '/api/leaderboard');
       $('leaderboard').hidden = players.length === 0;
@@ -523,13 +566,77 @@
     } catch { /* next poll retries */ }
   }
 
-  async function refreshLive() {
-    let games;
+  // "in 2 hours", "in 5 minutes"
+  function inTime(ms) {
+    const format = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+    const minutes = Math.max(1, Math.round((ms - Date.now()) / 60000));
+    if (minutes < 60) return format.format(minutes, 'minute');
+    if (minutes < 60 * 36) return format.format(Math.round(minutes / 60), 'hour');
+    return format.format(Math.round(minutes / 1440), 'day');
+  }
+
+  const TROPHY =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v2h4v3a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V19h3v2H8v-2h3v-3.1A5 5 0 0 1 7.6 13 ' +
+    '5 5 0 0 1 3 8V5h4zm0 4H5v1a3 3 0 0 0 2 2.8zm10 0v3.8A3 3 0 0 0 19 8V7z"/></svg>';
+
+  // Running and upcoming tournaments: spotlights on the left, a table at the bottom.
+  async function refreshTournaments() {
+    let open;
     try {
-      games = (await request('GET', '/api/rooms')).games;
+      const list = (await request('GET', '/api/tournaments')).tournaments;
+      open = list.filter((t) => t.status !== 'finished').sort((a, b) => a.startsAt - b.startsAt);
+    } catch {
+      return; // next poll retries
+    }
+    const now = Date.now();
+    const playersText = (t) => `${t.players} player${t.players === 1 ? '' : 's'}`;
+    $('spotlights').replaceChildren(
+      ...open.slice(0, 3).map((t) => {
+        const a = document.createElement('a');
+        a.className = `spotlight ${t.status}`;
+        a.href = tournamentHref(t.id);
+        a.innerHTML = `${TROPHY}<span class="content"><span class="name"></span><span class="more"></span></span>`;
+        a.querySelector('.name').textContent = t.name;
+        a.querySelector('.more').textContent =
+          `${playersText(t)} • ${t.status === 'running' ? 'Playing now' : inTime(t.startsAt)}`;
+        return a;
+      })
+    );
+    $('lobby-tours-empty').hidden = open.length > 0;
+    $('lobby-tours-list').replaceChildren(
+      ...open.slice(0, 5).map((t) => {
+        const length = t.minutes * 60000;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="name"><a></a></td><td class="progress"><span class="bar"><i></i><span></span></span></td>' +
+          '<td class="duration"></td><td class="players"></td>';
+        tr.querySelector('a').textContent = t.name;
+        tr.querySelector('a').href = tournamentHref(t.id);
+        const running = t.status === 'running';
+        const left = Math.max(1, Math.round((t.startsAt + length - now) / 60000));
+        tr.querySelector('.bar i').style.width = running ? `${Math.min(100, ((now - t.startsAt) / length) * 100)}%` : '0';
+        tr.querySelector('.bar span').textContent = running
+          ? `${left} minute${left === 1 ? '' : 's'} remaining`
+          : inTime(t.startsAt);
+        tr.querySelector('.duration').textContent = durationText(t.minutes);
+        tr.querySelector('.players').textContent = t.players;
+        tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+        return tr;
+      })
+    );
+  }
+
+  async function refreshLive() {
+    let data;
+    try {
+      data = await request('GET', '/api/rooms');
     } catch {
       return; // keep the last list; the next poll retries
     }
+    const games = data.games;
+    $('count-online').textContent = data.online.toLocaleString();
+    $('count-playing').textContent = data.playing.toLocaleString();
+    renderTv(games);
     $('live-empty').hidden = games.length > 0;
     const who = (player) => (player ? nameAndRating(player) : 'Anonymous');
     $('live-list').replaceChildren(
@@ -549,6 +656,55 @@
         return tr;
       })
     );
+  }
+
+  // The small board shows one live game and stays on it until it ends; the next
+  // pick is the game with the strongest player. With nothing to show it holds
+  // the starting position.
+  function renderTv(games) {
+    const strength = (game) =>
+      Math.max(...['red', 'blue'].map((color) => (game.players[color] && game.players[color].rating) || 0));
+    const game =
+      games.find((g) => tv && tv.game && g.room === tv.game.room) ||
+      [...games].sort((a, b) => strength(b) - strength(a))[0] ||
+      null;
+    tv = { game, at: performance.now() };
+    const link = $('lobby-tv');
+    if (game) link.href = `/?room=${game.room}&watch`;
+    else link.removeAttribute('href');
+    const board = game ? game.board : newGame().board;
+    const cells = board.map((piece, index) => {
+      const cell = document.createElement('span');
+      cell.className = 'cell';
+      if ((Math.floor(index / 5) + (index % 5)) % 2 === 0) cell.classList.add('dark');
+      if (index === TEMPLE.red) cell.classList.add('temple-red');
+      if (index === TEMPLE.blue) cell.classList.add('temple-blue');
+      if (game && game.last && (game.last.from === index || game.last.to === index)) cell.classList.add('last');
+      if (piece) cell.innerHTML = pieceSvg(prefs.pieces, piece.c, piece.m ? 'master' : 'student', piece.c === 'red' ? '' : ' far');
+      return cell;
+    });
+    $('tv-board').replaceChildren(...cells);
+    const label = (el, color) => {
+      const player = game && game.players[color];
+      el.innerHTML = '<i class="turn-dot"></i><span class="name"></span><span class="rating"></span>';
+      el.firstChild.classList.add(color);
+      el.children[1].textContent = !game ? { blue: 'Onitama TV', red: 'No game in play' }[color] : player ? player.name : 'Anonymous';
+      el.children[2].textContent = player && !player.bot ? ratingText(player) : '';
+      el.firstChild.hidden = !game;
+    };
+    label($('tv-top'), 'blue');
+    label($('tv-bottom'), 'red');
+    renderTvClocks();
+  }
+
+  function renderTvClocks() {
+    const clock = tv && tv.game && tv.game.clock;
+    for (const [id, color] of [['tv-top-clock', 'blue'], ['tv-bottom-clock', 'red']]) {
+      let ms = clock ? clock.remaining[color] : 0;
+      if (clock && clock.running === color) ms = Math.max(0, ms - (performance.now() - tv.at));
+      $(id).textContent = clock ? clockText(ms) : '';
+      $(id).classList.toggle('running', !!clock && clock.running === color);
+    }
   }
 
   // ---------- profile and match history ----------
@@ -1508,6 +1664,7 @@
     bindDialogs();
     bindMenu();
     bindBoardResize();
+    fillTimeControls();
     $('nav-tournaments').hidden = !accountsOn;
 
     if (params.get('user')) showProfile(params.get('user'));

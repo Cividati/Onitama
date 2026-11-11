@@ -60,8 +60,6 @@ h2, h3 { margin: 0; font-weight: 400; color: var(--strong); }
   align-items: center;
   gap: 28px;
   padding: 0 16px;
-  max-width: 1160px;
-  margin: 0 auto;
 }
 .brand { font-size: 26px; font-weight: 300; color: var(--text); letter-spacing: 0.01em; }
 .brand:hover { color: var(--brand); }
@@ -100,44 +98,80 @@ a.button { display: inline-block; }
 .error { color: #e0655c; min-height: 1.4em; margin: 6px 0; }
 
 /* ---------- lobby ---------- */
+/* Three columns like the lichess home page: tournaments, pairing and buttons on
+   top; a live game, the rules and the leaderboard below. */
 
 #lobby {
-  max-width: 1000px;
-  margin: 24px auto;
+  max-width: 1400px;
+  margin: 16px auto 40px;
   padding: 0 16px;
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(230px, 1fr) minmax(0, 2fr) minmax(230px, 1fr);
+  grid-template-areas: "side app table" "tv feed leaders" "footer tours tours";
   gap: 16px;
   align-items: start;
 }
+#lobby-side { grid-area: side; margin-top: 30px; }
+#lobby-app { grid-area: app; min-width: 0; }
+#lobby-table { grid-area: table; align-self: stretch; display: flex; flex-direction: column; }
+#lobby-tv { grid-area: tv; }
+#lobby-feed { grid-area: feed; align-self: stretch; }
+#leaderboard { grid-area: leaders; }
+#lobby-footer { grid-area: footer; }
+#lobby-tours { grid-area: tours; }
 
-#lobby-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* Tournament spotlights */
+#spotlights { display: flex; flex-direction: column; background: var(--panel); border-radius: 3px; overflow: hidden; }
+#spotlights:empty { display: none; }
+.spotlight { display: flex; align-items: center; gap: 12px; padding: 8px 12px; color: var(--text); }
+.spotlight + .spotlight { border-top: 1px solid var(--line); }
+.spotlight:hover { background: var(--panel-hi); color: var(--strong); }
+.spotlight svg { width: 38px; height: 38px; flex: none; fill: var(--dim); }
+.spotlight.running svg { fill: var(--brand); }
+.spotlight .content { display: flex; flex-direction: column; min-width: 0; }
+.spotlight .name { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spotlight .more { font-size: 12px; color: var(--dim); }
+.about-side { margin: 14px 4px 0; color: var(--dim); font-size: 13px; }
+
+/* Tabs above the pairing tiles */
+.tabs { display: flex; height: 30px; margin-bottom: 8px; }
+.tabs button {
+  flex: 1;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0 8px 4px;
+  color: var(--text);
+}
+.tabs button:hover { color: var(--strong); border-bottom-color: var(--line); }
+.tabs button.active { color: var(--brand); border-bottom-color: var(--brand); }
 
 /* Quick pairing tiles */
-#pools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+#pools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .pool {
   position: relative;
-  background: var(--panel-hi);
+  background: color-mix(in srgb, var(--panel-hi) 82%, transparent);
   border: 0;
   border-radius: 3px;
-  padding: 26px 8px;
+  aspect-ratio: 17 / 10;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   color: var(--text);
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s, color 0.15s;
 }
-.pool .tc { font-size: 32px; line-height: 1.2; }
-.pool .perf { font-size: 16px; color: var(--dim); }
+.pool .tc { font-size: clamp(22px, 3vw, 38px); font-weight: 300; letter-spacing: 0.06em; line-height: 1.25; }
+.pool .perf, .pool.custom { font-size: clamp(15px, 1.9vw, 24px); font-weight: 300; }
 .pool:hover { background: color-mix(in srgb, var(--brand) 30%, var(--panel-hi)); color: #fff; }
-.pool:hover .perf { color: #fff; }
 .pool.seeking { background: var(--brand); color: #fff; }
 .pool.seeking .perf { visibility: hidden; }
 .pool.seeking::after {
   content: "Waiting… click to cancel";
   position: absolute;
-  bottom: 12px;
+  bottom: 14%;
   left: 0;
   right: 0;
   font-size: 12.5px;
@@ -145,8 +179,7 @@ a.button { display: inline-block; }
 }
 @keyframes pulse { 50% { opacity: 0.45; } }
 
-#live { min-height: 260px; padding-bottom: 8px; }
-#live h2 { padding: 14px 16px; font-size: 18px; }
+#live { background: var(--panel); border-radius: 3px; min-height: 260px; padding-bottom: 8px; overflow-x: auto; }
 #live table { width: 100%; border-collapse: collapse; }
 #live th {
   text-align: left;
@@ -167,25 +200,82 @@ a.button { display: inline-block; }
 .turn-dot.red { background: var(--red); }
 .turn-dot.blue { background: var(--blue); }
 
+/* Start buttons and the counters under them */
+#lobby-start { display: flex; flex-direction: column; gap: 10px; margin: auto 0; padding-top: 30px; }
 .big-button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   width: 100%;
-  padding: 22px 12px;
+  padding: 14px 18px;
   background: linear-gradient(to bottom, var(--button-top), var(--button-bottom));
-  color: var(--text);
+  color: var(--strong);
   border: 0;
   border-radius: 3px;
-  text-transform: uppercase;
   font-size: 16px;
-  letter-spacing: 0.03em;
+  font-weight: 600;
+  text-align: left;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px rgba(0, 0, 0, 0.12);
 }
+.big-button svg { width: 30px; height: 30px; flex: none; fill: currentColor; opacity: 0.55; }
 .big-button:hover { background: var(--brand); color: #fff; }
-#create { margin-bottom: 10px; }
-.howto { padding: 14px 16px; }
-.howto h2 { font-size: 16px; }
-.howto ul { padding-left: 18px; margin: 8px 0 0; }
-.howto li { margin: 6px 0; }
+.big-button:hover svg { opacity: 1; }
+#lobby-error:empty { display: none; }
+#lobby-counters { display: flex; flex-direction: column; padding-top: 12px; }
+#lobby-counters strong { color: var(--strong); }
+
+/* A live game on a small board */
+.mini-game { display: flex; flex-direction: column; color: var(--text); }
+.mini-player { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 3px 2px; min-height: 27px; }
+.mini-player .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-player .name { color: var(--strong); }
+.mini-player .rating { color: var(--dim); font-size: 12px; margin-left: 6px; }
+.mini-clock { font-variant-numeric: tabular-nums; }
+.mini-clock.running { color: var(--brand); }
+.mini-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  aspect-ratio: 1;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px rgba(0, 0, 0, 0.12);
+}
+.mini-board .cell::before { border-width: 2px; }
+:root[data-pieces="tiles"] .mini-board .piece.far { transform: rotate(180deg); }
+
+.howto { padding: 16px 20px; }
+.howto h2 { font-size: 18px; color: var(--brand); }
+.howto ul { padding-left: 18px; margin: 10px 0 0; }
+.howto li { margin: 8px 0; }
 .howto strong { color: var(--strong); }
+
+#leaderboard { display: flex; flex-direction: column; }
+#leaderboard .caption { text-align: right; padding: 3px 2px; min-height: 27px; }
+#leaders { margin: 0; padding: 8px 16px 8px 38px; }
+#leaders li { padding: 4px 0; }
+#leaders li a { color: var(--strong); }
+#leaders li a:hover { color: var(--brand); }
+#leaders li span { float: right; color: var(--dim); }
+
+#lobby-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; padding: 8px 0; font-size: 12.5px; font-weight: 600; }
+#lobby-footer a { color: var(--dim); }
+#lobby-footer a:hover { color: var(--strong); }
+
+/* Open tournaments */
+.tours-head { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--panel-hi); color: var(--strong); font-weight: 600; }
+.tours-head a { color: var(--dim); font-weight: 400; }
+.tours-head a:hover { color: var(--link); }
+#lobby-tours { overflow: hidden; }
+#lobby-tours table { width: 100%; border-collapse: collapse; }
+#lobby-tours td { padding: 8px 12px; border-top: 1px solid var(--line); white-space: nowrap; }
+#lobby-tours tr { cursor: pointer; }
+#lobby-tours tr:hover { background: var(--panel-hi); }
+#lobby-tours td.progress { width: 45%; }
+#lobby-tours td.players { text-align: right; }
+#lobby-tours .bar { position: relative; display: block; background: var(--bg); border-radius: 9px; overflow: hidden; font-size: 12.5px; }
+#lobby-tours .bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--link) 45%, transparent); }
+#lobby-tours .bar span { position: relative; display: block; padding: 0 10px; }
+#lobby-tours-empty { margin: 0; padding: 12px; color: var(--dim); }
 
 /* ---------- game layout ---------- */
 
@@ -478,8 +568,9 @@ button.card:hover { background: var(--panel-hi); }
 @media (max-width: 980px) {
   :root { --cell: min(96px, (100vw - 16px) / 5); }
   #top { padding: 0 8px; }
-  #lobby { grid-template-columns: 1fr; }
-  #lobby-side { order: -1; }
+  #lobby { grid-template-columns: minmax(0, 1fr); grid-template-areas: "app" "table" "side" "tv" "tours" "leaders" "feed" "footer"; }
+  #lobby-side, #lobby-start { margin-top: 0; padding-top: 0; }
+  #lobby-tv, #leaderboard { width: min(100%, 420px); margin: 0 auto; }
   #game {
     padding: 0 8px;
     grid-template-columns: calc(var(--cell) * 5);
@@ -493,7 +584,8 @@ button.card:hover { background: var(--panel-hi); }
   #moves-scroll { min-height: 120px; }
   #chat { min-height: 240px; }
   #pools { gap: 6px; }
-  .pool { padding: 20px 4px 26px; }
+  .pool .tc { font-size: 24px; }
+  .pool .perf, .pool.custom { font-size: 15px; }
   .pool.seeking::after { content: "Waiting… tap to cancel"; }
   /* Let the side column's boxes take their own places in the single column. */
   #side { display: contents; }
@@ -571,7 +663,6 @@ button.card:hover { background: var(--panel-hi); }
 .link { background: none; border: 0; padding: 0; color: var(--link); text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
 .link:hover { color: var(--strong); }
 
-#pool-note { margin: -6px 0 0; color: var(--dim); font-size: 13px; min-height: 1em; }
 
 dialog {
   background: var(--panel);
@@ -615,14 +706,6 @@ dialog .error { margin: 0; }
 #card-picker .card.selected { box-shadow: 0 0 0 2px var(--green); background: color-mix(in srgb, var(--green) 25%, var(--panel)); }
 #card-picker .card-grid { grid-template-columns: repeat(5, 11px); grid-template-rows: repeat(5, 11px); }
 #card-picker .card.selected .card-grid i.m { background: var(--strong); }
-
-#leaderboard { padding: 14px 16px; margin-bottom: 16px; }
-#leaderboard h2 { font-size: 16px; }
-#leaders { margin: 8px 0 0; padding-left: 22px; }
-#leaders li { padding: 2px 0; }
-#leaders li a { color: var(--strong); }
-#leaders li a:hover { color: var(--brand); }
-#leaders li span { float: right; color: var(--dim); }
 
 .identity { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; }
 .identity .rating, .identity .diff { flex: none; }
@@ -694,4 +777,8 @@ td.status.finished { color: var(--dim); }
   .table-box th, .table-box td { padding-left: 10px; padding-right: 10px; }
   #card-picker { grid-template-columns: repeat(3, 1fr); }
   #live th:nth-child(4), #live td:nth-child(4), #live th:nth-child(5), #live td:nth-child(5) { display: none; }
+  #lobby-tours td.name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+  #lobby-tours td.duration { display: none; }
+  #top { gap: 14px; }
+  #menu-rating { display: none; }
 }
