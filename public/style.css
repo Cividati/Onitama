@@ -759,6 +759,7 @@ dialog fieldset { border: 1px solid var(--line); border-radius: 3px; display: fl
 dialog legend { color: var(--dim); padding: 0 6px; }
 dialog .error { margin: 0; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+#auth-form .dialog-actions { justify-content: center; }
 .button.google { background: #fff; color: #1f1f1f; text-align: center; padding: 11px; text-transform: none; font-size: 14px; }
 .or { text-align: center; color: var(--dim); font-size: 12.5px; }
 
