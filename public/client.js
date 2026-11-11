@@ -1787,6 +1787,7 @@
     accountsOn = !!me.accounts;
     donateUrl = me.donate || null;
     googleOn = !!me.google;
+    $('version').textContent = me.version || '';
     account = me.user || null;
     renderAccount();
     $('nav-tournaments').hidden = !accountsOn;

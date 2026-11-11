@@ -1,6 +1,6 @@
 {
   "name": "onitama-online",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Play Onitama with a friend in the browser",
   "private": true,
   "main": "server.js",
