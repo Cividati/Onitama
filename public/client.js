@@ -300,6 +300,7 @@
       pingTimer = setInterval(measurePing, 3000);
     };
     button.addEventListener('click', () => (panel.hidden ? open() : close()));
+    $('menu-profile').addEventListener('click', close);
     document.addEventListener('pointerdown', (e) => {
       if (!panel.hidden && !$('menu').contains(e.target)) close();
     });
@@ -435,7 +436,6 @@
   }
 
   let seek = null; // { tc, button, events } while waiting to be paired
-  let lobbyTimers = [];
   let tv = null; // { game, at } the live game on the lobby's small board
 
   function showLobby(error) {
@@ -446,6 +446,15 @@
       : account
         ? 'Quick pairing is rated when your opponent is signed in too.'
         : 'Sign in to play rated games and keep your match history.';
+    $('lobby-tournaments').hidden = $('footer-tournaments').hidden = $('lobby-tours').hidden = !accountsOn;
+    refreshLive();
+    refreshLobby();
+    every(refreshLive, 3000);
+    every(refreshLobby, 15000);
+    every(renderTvClocks, 500);
+  }
+
+  function bindLobby() {
     for (const [tc, perf] of POOLS) {
       const button = document.createElement('button');
       button.className = 'pool';
@@ -471,10 +480,6 @@
         $('live').hidden = tab.dataset.tab !== 'live';
       });
     }
-    $('lobby-tournaments').hidden = $('footer-tournaments').hidden = $('lobby-tours').hidden = !accountsOn;
-    refreshLive();
-    refreshLobby();
-    lobbyTimers = [setInterval(refreshLive, 3000), setInterval(refreshLobby, 15000), setInterval(renderTvClocks, 500)];
     bindFriendDialog();
     bindBotDialog();
   }
@@ -482,16 +487,11 @@
   // Moves from the lobby or a tournament into a room without a page load, so the
   // click that started it still counts as the interaction browsers require for sound.
   function enterRoom(code) {
-    lobbyTimers.forEach(clearInterval);
-    clearInterval(tourTimer);
-    if (seek) seek.events.close();
-    if (tourEvents) tourEvents.close();
+    leavePage();
     history.pushState(null, '', `/?room=${code}`);
-    $('lobby').hidden = $('tournament').hidden = true;
     room = code;
     startGame();
   }
-  window.addEventListener('popstate', () => location.reload());
 
   // Clicking a pool waits for an opponent; clicking it again cancels.
   function toggleSeek(button) {
@@ -645,7 +645,7 @@
           : inTime(t.startsAt);
         tr.querySelector('.duration').textContent = durationText(t.minutes);
         tr.querySelector('.players').textContent = t.players;
-        tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+        tr.addEventListener('click', () => navigate(tournamentHref(t.id)));
         return tr;
       })
     );
@@ -677,7 +677,7 @@
         tr.querySelector('.move').textContent = game.moveCount + 1;
         tr.querySelector('.spec').textContent = game.spectators;
         tr.querySelector('a').href = href;
-        tr.addEventListener('click', () => { location.href = href; });
+        tr.addEventListener('click', () => navigate(href));
         return tr;
       })
     );
@@ -745,13 +745,16 @@
   // ---------- profile and match history ----------
 
   async function showProfile(name) {
+    const mine = visit;
     let data;
     try {
       data = await request('GET', `/api/users/${encodeURIComponent(name)}`);
     } catch (err) {
+      if (mine !== visit) return;
       history.replaceState(null, '', '/');
       return showLobby(err.message);
     }
+    if (mine !== visit) return; // the visitor has moved on to another page
     const user = data.user;
     $('profile').hidden = false;
     document.title = `${user.name} — Onitama`;
@@ -776,7 +779,7 @@
         tr.querySelector('.wdl').textContent = `${t.wins} / ${t.draws} / ${t.losses}`;
         tr.querySelector('.score').textContent = t.score;
         tr.querySelector('.date').textContent = new Date(t.starts_at).toLocaleDateString(undefined, { dateStyle: 'medium' });
-        tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+        tr.addEventListener('click', () => navigate(tournamentHref(t.id)));
         return tr;
       })
     );
@@ -805,7 +808,7 @@
           dateStyle: 'medium',
           timeStyle: 'short',
         });
-        tr.addEventListener('click', () => { location.href = `/?game=${game.id}`; });
+        tr.addEventListener('click', () => navigate(`/?game=${game.id}`));
         return tr;
       })
     );
@@ -815,8 +818,8 @@
 
   const tournamentHref = (id) => `/?tournament=${id}`;
   let tour = null; // latest snapshot of the tournament on screen
+  let tourId = null; // id of that tournament
   let tourEvents = null;
-  let tourTimer = null;
   let tourSkew = 0; // the server's clock minus ours
 
   const dateText = (ms) => new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -835,15 +838,16 @@
     $('tournaments').hidden = false;
     document.title = 'Tournaments — Onitama';
     $('tournament-new').hidden = !account;
-    bindTournamentDialog();
+    const mine = visit;
     const refresh = async () => {
       let list;
       try {
         list = (await request('GET', '/api/tournaments')).tournaments;
       } catch (err) {
-        $('tournaments-note').textContent = err.message;
+        if (mine === visit) $('tournaments-note').textContent = err.message;
         return;
       }
+      if (mine !== visit) return;
       $('tournaments-note').textContent = account ? '' : 'Sign in to create or join a tournament.';
       $('tournaments-empty').hidden = list.length > 0;
       $('tournaments-list').replaceChildren(
@@ -861,13 +865,13 @@
           const status = tr.querySelector('.status');
           status.classList.add(t.status);
           status.textContent = { upcoming: 'Upcoming', running: 'Running', finished: 'Finished' }[t.status];
-          tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+          tr.addEventListener('click', () => navigate(tournamentHref(t.id)));
           return tr;
         })
       );
     };
     refresh();
-    setInterval(refresh, 10000);
+    every(refresh, 10000);
   }
 
   function bindTournamentDialog() {
@@ -888,7 +892,8 @@
           minutes: Number($('tournament-form-minutes').value),
           startsAt: new Date($('tournament-form-start').value).getTime(),
         });
-        location.href = tournamentHref(id);
+        $('tournament-dialog').close();
+        navigate(tournamentHref(id));
       } catch (err) {
         $('tournament-form-error').textContent = err.message;
       }
@@ -897,12 +902,11 @@
 
   const myEntry = () => (account && tour ? tour.standings.find((p) => p.id === account.id) : null) || null;
 
-  function showTournament(id) {
-    $('tournament').hidden = false;
+  function bindTournament() {
     const act = async (action) => {
       try {
         $('tournament-error').textContent = '';
-        await request('POST', `/api/tournaments/${encodeURIComponent(id)}/${action}`, {});
+        await request('POST', `/api/tournaments/${encodeURIComponent(tourId)}/${action}`, {});
       } catch (err) {
         $('tournament-error').textContent = err.message;
       }
@@ -925,40 +929,45 @@
         return;
       }
       try {
-        await request('DELETE', `/api/tournaments/${encodeURIComponent(id)}`, {});
-        location.href = '/?tournaments';
+        await request('DELETE', `/api/tournaments/${encodeURIComponent(tourId)}`, {});
+        navigate('/?tournaments');
       } catch (err) {
         $('tournament-error').textContent = err.message;
       }
     });
+  }
 
-    tourEvents = new EventSource(`/api/tournaments/${encodeURIComponent(id)}/events`);
-    tourEvents.onmessage = (e) => {
+  function showTournament(id) {
+    tourId = id;
+    $('tournament-error').textContent = '';
+    const events = (tourEvents = new EventSource(`/api/tournaments/${encodeURIComponent(id)}/events`));
+    events.onmessage = (e) => {
       tour = JSON.parse(e.data);
       tourSkew = tour.now - Date.now();
-      if (tour.status === 'finished') tourEvents.close(); // nothing more will change
+      if (tour.status === 'finished') events.close(); // nothing more will change
       // A game of ours is running (e.g. after a reload): go back to it.
       const me = myEntry();
       if (me && me.room && storedToken(me.room)) return enterRoom(me.room);
+      $('tournament').hidden = false; // shown once there is something to show
       renderTournament();
+      renderTournamentClock();
     };
-    tourEvents.addEventListener('paired', (e) => {
+    events.addEventListener('paired', (e) => {
       const paired = JSON.parse(e.data);
       storeToken(paired.room, paired.token);
       enterRoom(paired.room);
     });
-    tourEvents.addEventListener('deleted', () => {
-      tourEvents.close();
-      location.href = '/?tournaments';
+    events.addEventListener('deleted', () => {
+      events.close();
+      navigate('/?tournaments');
     });
-    tourEvents.onerror = () => {
+    events.onerror = () => {
       if (tour) return; // a dropped connection reconnects by itself
-      tourEvents.close();
+      leavePage();
       history.replaceState(null, '', '/');
-      $('tournament').hidden = true;
       showLobby('That tournament could not be found.');
     };
-    tourTimer = setInterval(renderTournamentClock, 1000);
+    every(renderTournamentClock, 1000);
   }
 
   function renderTournamentClock() {
@@ -1049,7 +1058,7 @@
   }
 
   function startAnalysis(game, extra) {
-    analysis = true;
+    analysis = inGame = true;
     snap = {
       game,
       seated: { red: true, blue: true },
@@ -1082,6 +1091,7 @@
   }
 
   async function startStoredAnalysis(id) {
+    inGame = true; // leaving now takes a page load, even while the game is still being fetched
     try {
       const { game: row } = await request('GET', `/api/games/${encodeURIComponent(id)}`);
       const player = (color) =>
@@ -1095,6 +1105,7 @@
         result: { gameId: row.id, diffs: { red: row.red_diff, blue: row.blue_diff } },
       });
     } catch (err) {
+      inGame = false;
       history.replaceState(null, '', '/');
       showLobby(err.message === 'bad moves' ? 'That game could not be loaded.' : err.message);
     }
@@ -1105,10 +1116,12 @@
   const bothSeated = (s) => s.seated.red && s.seated.blue;
 
   async function startGame() {
+    inGame = true;
     let joined;
     try {
       joined = await post(`/${room}/join`, watching ? { spectate: true } : { token: storedToken(room) });
     } catch (err) {
+      inGame = false;
       history.replaceState(null, '', '/');
       return showLobby(`${err.message}. It may have expired — create a new one.`);
     }
@@ -1688,29 +1701,109 @@
 
   // ---------- start ----------
 
+  // Moving between the lobby, tournaments, profiles and the donate page swaps
+  // the visible <main> without loading a new document, so the top bar stays put.
+  // A game holds too much state to tear down: entering or leaving one is a page load.
+
+  let inGame = false;
+  let visit = 0; // goes up on every page change, so late replies for an old page can be dropped
+  let pageTimers = [];
+
+  // An interval that stops when the visitor leaves the page.
+  function every(fn, ms) {
+    pageTimers.push(setInterval(fn, ms));
+  }
+
+  function leavePage() {
+    visit++;
+    pageTimers.forEach(clearInterval);
+    pageTimers = [];
+    if (seek) {
+      seek.events.close();
+      seek.button.classList.remove('seeking');
+      seek = null;
+    }
+    if (tourEvents) tourEvents.close();
+    tourEvents = tour = null;
+    for (const main of document.querySelectorAll('main')) main.hidden = true;
+  }
+
+  const isGameUrl = (url) => ['room', 'game', 'analysis'].some((key) => url.searchParams.get(key));
+
+  function showPage(error) {
+    const query = new URLSearchParams(location.search);
+    document.title = 'Onitama';
+    if (query.get('user')) showProfile(query.get('user'));
+    else if (query.has('tournaments')) showTournaments();
+    else if (query.has('donate')) showDonate();
+    else if (query.get('tournament')) showTournament(query.get('tournament'));
+    else if (query.get('game')) startStoredAnalysis(query.get('game'));
+    else if (query.get('analysis')) startUrlAnalysis(query.get('analysis'));
+    else if (query.get('room')) startGame();
+    else showLobby(error);
+  }
+
+  function navigate(href) {
+    const url = new URL(href, location.href);
+    if (url.href === location.href) return;
+    if (inGame || isGameUrl(url)) {
+      location.href = url.href;
+      return;
+    }
+    leavePage();
+    history.pushState(null, '', url.pathname + url.search);
+    showPage();
+    window.scrollTo(0, 0);
+  }
+
+  // Plain clicks on links to our own pages are handled here instead of by the browser.
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href]');
+    if (!link || link.target || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const url = new URL(link.href);
+    if (url.origin !== location.origin || url.pathname !== '/') return;
+    e.preventDefault();
+    navigate(url.href);
+  });
+
+  window.addEventListener('popstate', () => {
+    if (inGame || isGameUrl(new URL(location.href))) return location.reload();
+    leavePage();
+    showPage();
+  });
+
+  // What the server last said about accounts and who is signed in, kept so the
+  // top bar can be drawn at once on the next page load instead of popping in.
+  const ME_KEY = 'onitama:me';
+
+  function applyMe(me) {
+    accountsOn = !!me.accounts;
+    donateUrl = me.donate || null;
+    googleOn = !!me.google;
+    account = me.user || null;
+    renderAccount();
+    $('nav-tournaments').hidden = !accountsOn;
+  }
+
   async function boot() {
     try {
+      applyMe(JSON.parse(localStorage.getItem(ME_KEY)) || {});
+    } catch {
+      applyMe({});
+    }
+    try {
       const me = await request('GET', '/api/me');
-      accountsOn = me.accounts;
-      donateUrl = me.donate;
-      googleOn = me.google;
-      account = me.user;
-    } catch { /* accounts stay off */ }
-    renderAccount();
+      applyMe(me);
+      try { localStorage.setItem(ME_KEY, JSON.stringify(me)); } catch { /* private mode */ }
+    } catch { /* keep what we knew */ }
     bindDialogs();
     bindMenu();
     bindBoardResize();
     fillTimeControls();
-    $('nav-tournaments').hidden = !accountsOn;
-
-    if (params.get('user')) showProfile(params.get('user'));
-    else if (params.has('tournaments')) showTournaments();
-    else if (params.has('donate')) showDonate();
-    else if (params.get('tournament')) showTournament(params.get('tournament'));
-    else if (params.get('game')) startStoredAnalysis(params.get('game'));
-    else if (params.get('analysis')) startUrlAnalysis(params.get('analysis'));
-    else if (room) startGame();
-    else showLobby(params.has('signin') ? 'Google sign-in did not complete. Please try again.' : '');
+    bindLobby();
+    bindTournamentDialog();
+    bindTournament();
+    showPage(params.has('signin') ? 'Google sign-in did not complete. Please try again.' : '');
   }
 
   boot();
