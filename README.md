@@ -29,6 +29,7 @@ All optional — with none of these set the game runs with accounts switched off
 | --- | --- |
 | `PORT` | Port to listen on (default 3000) |
 | `DATABASE_URL` | Postgres connection string; enables accounts, ratings and match history. Tables are created on start. |
+| `DONATE_URL` | An `https://` link (Ko-fi, GitHub Sponsors, PayPal…) for the button on the Donate page. Without it the page says donations are not open yet. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enable "Continue with Google". The OAuth client's redirect URI must be `https://YOUR-DOMAIN/auth/google/callback`. |
 | `PUBLIC_URL` | Public origin (e.g. `https://onitama.example`) if it cannot be derived from the request |
 

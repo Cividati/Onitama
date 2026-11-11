@@ -37,6 +37,7 @@
   // Signed-in account and what the server supports (from /api/me).
   let account = null;
   let accountsOn = false;
+  let donateUrl = null; // where the Donate page sends people, when the server has one
   let googleOn = false;
 
   // latest server snapshot: { game, seated, online, spectators, you, players, rated, result, tc, clock, offers }
@@ -729,6 +730,16 @@
       $(id).textContent = clock ? clockText(ms) : '';
       $(id).classList.toggle('running', !!clock && clock.running === color);
     }
+  }
+
+  // ---------- donate ----------
+
+  function showDonate() {
+    $('donate').hidden = false;
+    document.title = 'Donate — Onitama';
+    if (donateUrl) $('donate-link').href = donateUrl;
+    $('donate-link').hidden = !donateUrl;
+    $('donate-closed').hidden = !!donateUrl;
   }
 
   // ---------- profile and match history ----------
@@ -1681,6 +1692,7 @@
     try {
       const me = await request('GET', '/api/me');
       accountsOn = me.accounts;
+      donateUrl = me.donate;
       googleOn = me.google;
       account = me.user;
     } catch { /* accounts stay off */ }
@@ -1693,6 +1705,7 @@
 
     if (params.get('user')) showProfile(params.get('user'));
     else if (params.has('tournaments')) showTournaments();
+    else if (params.has('donate')) showDonate();
     else if (params.get('tournament')) showTournament(params.get('tournament'));
     else if (params.get('game')) startStoredAnalysis(params.get('game'));
     else if (params.get('analysis')) startUrlAnalysis(params.get('analysis'));

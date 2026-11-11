@@ -60,16 +60,17 @@ h2, h3 { margin: 0; font-weight: 400; color: var(--strong); }
   align-items: center;
   gap: 28px;
   padding: 0 16px;
-  max-width: 1160px;
+  /* The same width on every page, so the bar never shifts between them. */
+  max-width: 1400px;
   margin: 0 auto;
 }
-/* The bar lines up with the page under it; the lobby is wider than the rest. */
-body:has(#lobby:not([hidden])) #top { max-width: 1400px; }
 .brand { font-size: 26px; font-weight: 300; color: var(--text); letter-spacing: 0.01em; }
 .brand:hover { color: var(--brand); }
 #top nav { display: flex; gap: 20px; }
 #top nav a { color: var(--text); text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
 #top nav a:hover { color: var(--strong); }
+#top nav a.donate { color: var(--brand); }
+#top nav a.donate:hover { filter: brightness(1.25); }
 
 /* ---------- shared bits ---------- */
 
@@ -741,6 +742,17 @@ dialog .error { margin: 0; }
 td.outcome { font-weight: 600; }
 td.diff { font-weight: 600; }
 #profile-empty { padding: 28px 16px; margin: 0; color: var(--dim); text-align: center; }
+
+/* ---------- donate ---------- */
+
+#donate { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+#donate-box { padding: 26px 30px 22px; font-size: 15px; }
+#donate-box h1 { margin: 0 0 12px; font-weight: 300; font-size: 34px; color: var(--strong); }
+#donate-box h2 { margin-top: 26px; font-size: 18px; }
+#donate-box ul { padding-left: 20px; }
+#donate-box li { margin: 6px 0; }
+#donate-link { margin-top: 8px; padding: 14px 28px; font-size: 16px; }
+#donate-closed { margin-top: 8px; font-size: 14px; }
 
 /* ---------- tournaments ---------- */
 
