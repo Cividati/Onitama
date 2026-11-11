@@ -856,6 +856,14 @@ td.status.finished { color: var(--dim); }
   #live th:nth-child(4), #live td:nth-child(4), #live th:nth-child(5), #live td:nth-child(5) { display: none; }
   #lobby-tours td.name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
   #lobby-tours td.duration { display: none; }
-  #top { gap: 14px; }
-  #menu-rating { display: none; }
+  /* The bar must fit a phone with Tournaments showing: the logo already leads home, and the name is in the menu. */
+  #top { gap: 12px; }
+  #top nav { gap: 14px; }
+  #top nav a:first-child { display: none; }
+  #menu-rating, #menu-name { display: none; }
+}
+
+/* The narrowest phones: Donate stays in the lobby footer. */
+@media (max-width: 380px) {
+  #top nav a.donate { display: none; }
 }
