@@ -10,7 +10,9 @@ const crypto = require('node:crypto');
 const Onitama = require('./public/game.js');
 const db = require('./lib/db');
 const accounts = require('./lib/accounts');
-const { json, readJson } = require('./lib/http');
+const bot = require('./lib/bot');
+const tournaments = require('./lib/tournaments');
+const { json, readJson, sseHeaders } = require('./lib/http');
 
 const { other } = Onitama;
 const PORT = Number(process.env.PORT) || 3000;
@@ -20,6 +22,8 @@ const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
 const CHAT_KEEP = 100;
 const CHAT_MAX_LENGTH = 200;
 const NAME = { red: 'Red', blue: 'Blue' };
+const BOT_DELAY_MS = 700; // pause before a bot answers, so its moves can be followed
+const FIRST_MOVE_MS = 30 * 1000; // time to make the first move of a tournament game
 
 // Seconds on the clock at the start, and seconds added after each move.
 const TIME_CONTROLS = {
@@ -56,6 +60,7 @@ const newToken = () => crypto.randomBytes(16).toString('hex');
 function createRoom(tc, cards) {
   const code = newCode();
   const room = {
+    code,
     game: Onitama.newGame(null, cards),
     cards,
     tc: TIME_CONTROLS[tc] ? tc : null,
@@ -64,6 +69,9 @@ function createRoom(tc, cards) {
     rated: false,
     tokens: { red: null, blue: null },
     users: { red: null, blue: null }, // signed-in account in each seat, if any
+    bot: null, // { color, level } when the computer plays one side
+    botTimer: null,
+    tournament: null, // { id, name } for a tournament game
     result: null, // { gameId, diffs } once a finished game has been stored
     clients: new Set(),
     chat: [],
@@ -73,15 +81,6 @@ function createRoom(tc, cards) {
   room.clock = newClock(room.tc);
   rooms.set(code, room);
   return { code, room };
-}
-
-function sseHeaders(res) {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
-    'X-Accel-Buffering': 'no',
-  });
 }
 
 function seatOf(room, token) {
@@ -120,7 +119,10 @@ function startClock(room) {
   stopClock(room);
   clock.running = room.game.turn;
   clock.since = Date.now();
-  clock.timer = setTimeout(() => flag(room), clock.remaining[clock.running] + 10);
+  let ms = clock.remaining[clock.running];
+  // In a tournament a player who does not show up loses quickly instead of holding up their opponent.
+  if (room.tournament && room.game.history.length < 2) ms = Math.min(ms, FIRST_MOVE_MS);
+  clock.timer = setTimeout(() => flag(room), ms + 10);
   clock.timer.unref();
 }
 
@@ -149,17 +151,25 @@ function finish(room, winner, reason) {
 
 const recorded = new WeakSet(); // games already handed to recordGame
 
+const isAccount = (user) => !!user && !user.bot;
+
 // Stores a finished game for signed-in players and applies rating changes.
-// Games that end before both sides have moved count as aborted.
+// Games that end before both sides have moved count as aborted, except for
+// the tournament score.
 function recordGame(room) {
   const game = room.game;
   if (!accounts.enabled || recorded.has(game)) return;
   recorded.add(game);
-  if (game.history.length < 2 || (!room.users.red && !room.users.blue)) return;
+  const tournament = room.tournament;
+  if (tournament) {
+    tournaments.gameFinished(tournament.id, room.code, { red: room.users.red.id, blue: room.users.blue.id }, game.winner);
+  }
+  if (game.history.length < 2 || (!isAccount(room.users.red) && !isAccount(room.users.blue))) return;
   accounts
     .saveGame({
       tc: room.tc,
       rated: room.rated,
+      tournament: tournament ? tournament.id : null,
       users: room.users,
       winner: game.winner,
       reason: game.winReason,
@@ -168,7 +178,9 @@ function recordGame(room) {
     })
     .then((saved) => {
       for (const color of ['red', 'blue']) {
-        if (room.users[color]) room.users[color] = { ...room.users[color], rating: saved.ratings[color] };
+        if (!isAccount(room.users[color])) continue;
+        room.users[color] = { ...room.users[color], rating: saved.ratings[color] };
+        if (tournament) tournaments.setRating(tournament.id, room.users[color].id, saved.ratings[color]);
       }
       if (room.game !== game) return; // a rematch already started
       room.result = { gameId: saved.id, diffs: saved.diffs };
@@ -181,6 +193,7 @@ function recordGame(room) {
 
 function presence(room) {
   const online = { red: false, blue: false };
+  if (room.bot) online[room.bot.color] = true;
   let spectators = 0;
   for (const client of room.clients) {
     if (client.color) online[client.color] = true;
@@ -198,6 +211,7 @@ function snapshot(room, color) {
     you: color,
     players: room.users,
     rated: room.rated,
+    tournament: room.tournament,
     result: room.result,
     tc: room.tc,
     clock: clock && {
@@ -213,6 +227,7 @@ function broadcast(room) {
   for (const client of room.clients) {
     client.res.write(`data: ${JSON.stringify(snapshot(room, client.color))}\n\n`);
   }
+  scheduleBot(room);
 }
 
 // Account name of the player in a seat, or the seat colour for anonymous players.
@@ -246,8 +261,8 @@ function liveGames() {
   const games = [];
   for (const [code, room] of rooms) {
     if (!room.tokens.red || !room.tokens.blue || room.game.winner) continue;
-    const { online, spectators } = presence(room);
-    if (!online.red && !online.blue) continue;
+    const { spectators } = presence(room);
+    if (spectators === room.clients.size) continue;
     games.push({
       room: code,
       players: room.users,
@@ -286,21 +301,66 @@ async function openSeek(req, res, tc) {
     return;
   }
   seekers.delete(tc);
-  if (rooms.size >= MAX_ROOMS) {
+  const paired = startPairedGame(tc, waiting.user, user, null);
+  if (!paired) {
     res.end();
     waiting.res.end();
     return;
   }
+  waiting.res.end(`data: ${JSON.stringify({ room: paired.code, token: paired.tokens[0] })}\n\n`);
+  res.end(`data: ${JSON.stringify({ room: paired.code, token: paired.tokens[1] })}\n\n`);
+}
+
+// Seats two players in a new room with the clock already running. Returns
+// { code, tokens: [first player's, second player's] }, or null when the server is full.
+function startPairedGame(tc, userA, userB, tournament) {
+  if (rooms.size >= MAX_ROOMS) return null;
   const { code, room } = createRoom(tc, null);
   const [first, second] = Math.random() < 0.5 ? ['red', 'blue'] : ['blue', 'red'];
   room.tokens = { red: newToken(), blue: newToken() };
-  room.users[first] = waiting.user;
-  room.users[second] = user;
+  room.users[first] = userA;
+  room.users[second] = userB;
   room.quick = true;
-  room.rated = accounts.enabled && !!waiting.user && !!user; // rated when both are signed in
+  room.rated = accounts.enabled && !!userA && !!userB; // rated when both are signed in
+  room.tournament = tournament;
+  if (tournament) say(room, 'system', `Tournament game: make your first move within ${FIRST_MOVE_MS / 1000} seconds`);
   startClock(room);
-  waiting.res.end(`data: ${JSON.stringify({ room: code, token: room.tokens[first] })}\n\n`);
-  res.end(`data: ${JSON.stringify({ room: code, token: room.tokens[second] })}\n\n`);
+  return { code, tokens: [room.tokens[first], room.tokens[second]] };
+}
+
+// ---------- playing against the computer ----------
+// Bot games are never rated: only quick pairing and tournaments set `rated`.
+
+function seatBot(room, level) {
+  const color = Math.random() < 0.5 ? 'red' : 'blue';
+  room.bot = { color, level };
+  room.tokens[color] = newToken();
+  room.users[color] = { id: null, name: bot.LEVELS[level].label, rating: null, bot: true };
+}
+
+const botToMove = (room) =>
+  !!room.bot && !room.game.winner && room.game.turn === room.bot.color && !!room.tokens.red && !!room.tokens.blue;
+
+function scheduleBot(room) {
+  if (room.botTimer || !botToMove(room)) return;
+  room.botTimer = setTimeout(() => {
+    room.botTimer = null;
+    if (!botToMove(room)) return; // e.g. the move was taken back meanwhile
+    const move = bot.chooseMove(room.game, room.bot.level);
+    const error = move.from === null ? Onitama.applyPass(room.game, move.card) : Onitama.applyMove(room.game, move);
+    if (error) return console.error('Bot move rejected:', error);
+    afterMove(room, room.bot.color);
+    broadcast(room);
+  }, BOT_DELAY_MS);
+  room.botTimer.unref();
+}
+
+// Clock and offers once `color` has moved or passed.
+function afterMove(room, color) {
+  // Moving implicitly turns down any pending offer.
+  finish(room, null);
+  if (room.clock) room.clock.remaining[color] += room.clock.increment;
+  if (!room.game.winner) startClock(room);
 }
 
 // ---------- draw offers and takebacks ----------
@@ -341,6 +401,10 @@ function handleOffer(room, color, kind, answer) {
   if (kind === 'takeback' && takebackPly(room.game, color) < 0) return 'You have no move to take back';
   room.offers[kind] = color;
   say(room, 'system', kind === 'draw' ? `${seatName(room, color)} offers a draw` : `${seatName(room, color)} proposes a takeback`);
+  // A bot lets you take a move back, but plays on rather than agree a draw.
+  if (room.bot && room.bot.color === other(color)) {
+    return handleOffer(room, room.bot.color, kind, kind === 'takeback' ? 'accept' : 'decline');
+  }
   return null;
 }
 
@@ -355,6 +419,7 @@ function validCards(cards) {
 
 async function handleApi(req, res, url) {
   if ((await accounts.route(req, res, url)) !== false) return;
+  if ((await tournaments.route(req, res, url)) !== false) return;
   const parts = url.pathname.split('/').filter(Boolean); // ['api', 'rooms', code?, action?]
 
   if (parts[1] === 'seek' && parts.length === 2 && req.method === 'GET') {
@@ -369,7 +434,11 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const cards = body.cards === undefined || body.cards === null ? null : validCards(body.cards);
     if (cards === false) return json(res, 400, { error: 'Choose exactly five different cards' });
-    return json(res, 201, { room: createRoom(body.tc, cards).code });
+    const level = body.bot === undefined || body.bot === null ? null : body.bot;
+    if (level !== null && !Object.hasOwn(bot.LEVELS, level)) return json(res, 400, { error: 'Unknown bot level' });
+    const created = createRoom(body.tc, cards);
+    if (level) seatBot(created.room, level);
+    return json(res, 201, { room: created.code });
   }
 
   const room = rooms.get(parts[2].toUpperCase());
@@ -413,6 +482,7 @@ async function handleApi(req, res, url) {
 
   if (action === 'rematch') {
     if (!room.game.winner) return json(res, 409, { error: 'The game is still in progress' });
+    if (room.tournament) return json(res, 409, { error: 'Tournament games have no rematch' });
     finish(room, null);
     room.game = Onitama.newGame(null, room.cards);
     room.result = null;
@@ -448,11 +518,7 @@ async function handleApi(req, res, url) {
       ? Onitama.applyMove(room.game, { card: body.card, from: body.from, to: body.to })
       : Onitama.applyPass(room.game, body.card);
   if (error) return json(res, 400, { error });
-
-  // Moving implicitly turns down any pending offer.
-  finish(room, null);
-  if (room.clock) room.clock.remaining[color] += room.clock.increment;
-  if (!room.game.winner) startClock(room);
+  afterMove(room, color);
   return ok();
 }
 
@@ -491,12 +557,14 @@ setInterval(() => {
   for (const [code, room] of rooms) {
     if (room.clients.size === 0 && room.touched < cutoff) {
       stopClock(room);
+      clearTimeout(room.botTimer);
       rooms.delete(code);
     }
   }
 }, 10 * 60 * 1000).unref();
 
 db.init()
+  .then(() => tournaments.init({ timeControls: TIME_CONTROLS, startGame: startPairedGame }))
   .then(() => {
     server.listen(PORT, () => {
       console.log(`Onitama running on http://localhost:${PORT}${db.enabled ? '' : ' (no DATABASE_URL: accounts off)'}`);

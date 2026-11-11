@@ -10,7 +10,7 @@
 <body>
   <header id="top">
     <a href="/" class="brand">onitama</a>
-    <nav><a href="/">Play</a></nav>
+    <nav><a href="/">Play</a><a href="/?tournaments" id="nav-tournaments" hidden>Tournaments</a></nav>
     <div id="account" hidden>
       <button id="signin" class="link" hidden>Sign in</button>
       <a id="me-link" hidden></a>
@@ -41,6 +41,7 @@
 
     <aside id="lobby-side">
       <button id="create" class="big-button">Play with a friend</button>
+      <button id="play-bot" class="big-button">Play with the computer</button>
       <p id="lobby-error" class="error" role="alert"></p>
       <div class="box" id="leaderboard" hidden>
         <h2>Leaderboard</h2>
@@ -73,6 +74,47 @@
         <tbody id="profile-list"></tbody>
       </table>
       <p id="profile-empty">No games yet.</p>
+    </section>
+  </main>
+
+  <main id="tournaments" hidden>
+    <section class="box table-box">
+      <div class="box-head">
+        <h1>Tournaments</h1>
+        <button id="tournament-new" class="button good">Create a tournament</button>
+      </div>
+      <p id="tournaments-note" class="note"></p>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Time</th><th>Duration</th><th>Starts</th><th>Players</th><th>Status</th></tr>
+        </thead>
+        <tbody id="tournaments-list"></tbody>
+      </table>
+      <p id="tournaments-empty" class="empty">No tournaments yet — create the first one.</p>
+    </section>
+  </main>
+
+  <main id="tournament" hidden>
+    <section class="box" id="tournament-head">
+      <h1 id="tournament-name"></h1>
+      <p id="tournament-meta"></p>
+      <div id="tournament-clock"></div>
+      <div id="tournament-actions">
+        <button id="tournament-join" class="button good" hidden>Join</button>
+        <button id="tournament-withdraw" class="button flat" hidden>Withdraw</button>
+        <span id="tournament-note" role="status"></span>
+      </div>
+      <p class="error" id="tournament-error" role="alert"></p>
+    </section>
+    <section class="box table-box">
+      <h2>Standings</h2>
+      <table>
+        <thead>
+          <tr><th>#</th><th>Player</th><th>Games</th><th>W / D / L</th><th>Score</th><th></th></tr>
+        </thead>
+        <tbody id="tournament-standings"></tbody>
+      </table>
+      <p id="tournament-empty" class="empty">Nobody has joined yet.</p>
     </section>
   </main>
 
@@ -131,6 +173,7 @@
         <button id="resign" class="button flat" hidden>⚑ Resign</button>
         <button id="rematch" class="button" hidden>Rematch</button>
         <a id="analysis" class="button flat" target="_blank" rel="noopener" hidden>Analysis board</a>
+        <a id="back-tournament" class="button" hidden>Back to tournament</a>
       </div>
     </div>
 
@@ -178,6 +221,68 @@
       <p class="error" id="friend-error" role="alert"></p>
       <div class="dialog-actions">
         <button type="submit" class="button good" id="friend-create">Create game</button>
+        <button type="button" class="button flat" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="bot-dialog">
+    <form id="bot-form">
+      <h2>Play with the computer</h2>
+      <label>Level
+        <select id="bot-level">
+          <option value="easy">Easy</option>
+          <option value="medium" selected>Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
+      <label>Time control
+        <select id="bot-tc">
+          <option value="">Unlimited</option>
+          <option>3+2</option>
+          <option>5+0</option>
+          <option>10+0</option>
+        </select>
+      </label>
+      <p class="note">Games against the computer are never rated.</p>
+      <p class="error" id="bot-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="button good">Play</button>
+        <button type="button" class="button flat" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="tournament-dialog">
+    <form id="tournament-form">
+      <h2>Create a tournament</h2>
+      <label>Name
+        <input id="tournament-form-name" required minlength="3" maxlength="40" autocomplete="off">
+      </label>
+      <label>Time control
+        <select id="tournament-form-tc">
+          <option>3+2</option>
+          <option>5+0</option>
+          <option>10+0</option>
+        </select>
+      </label>
+      <label>Duration
+        <select id="tournament-form-minutes">
+          <option value="20">20 minutes</option>
+          <option value="30">30 minutes</option>
+          <option value="45" selected>45 minutes</option>
+          <option value="60">1 hour</option>
+          <option value="90">1 hour 30 minutes</option>
+          <option value="120">2 hours</option>
+        </select>
+      </label>
+      <label>Starts
+        <input id="tournament-form-start" type="datetime-local" required>
+      </label>
+      <p class="note">Arena: players are paired again and again until the time is up. Win 2 points, draw 1. Games are rated.</p>
+      <p class="error" id="tournament-form-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="button good">Create</button>
         <button type="button" class="button flat" data-close>Cancel</button>
       </div>
     </form>

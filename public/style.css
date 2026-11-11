@@ -47,6 +47,7 @@ h2, h3 { margin: 0; font-weight: 400; color: var(--strong); }
 }
 .brand { font-size: 26px; font-weight: 300; color: var(--text); letter-spacing: 0.01em; }
 .brand:hover { color: var(--brand); }
+#top nav { display: flex; gap: 20px; }
 #top nav a { color: var(--text); text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
 #top nav a:hover { color: var(--strong); }
 
@@ -161,6 +162,7 @@ a.button { display: inline-block; }
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.2), 0 1px 5px rgba(0, 0, 0, 0.12);
 }
 .big-button:hover { background: var(--brand); color: #fff; }
+#create { margin-bottom: 10px; }
 .howto { padding: 14px 16px; }
 .howto h2 { font-size: 16px; }
 .howto ul { padding-left: 18px; margin: 8px 0 0; }
@@ -412,7 +414,7 @@ button.card:hover { background: var(--panel-hi); }
 #status .result { display: block; font-style: normal; font-weight: 700; font-size: 15px; }
 
 #controls { display: flex; justify-content: center; gap: 8px; padding: 0 8px 8px; }
-#controls:not(:has(button:not([hidden]))) { display: none; }
+#controls:not(:has(.button:not([hidden]))) { display: none; }
 
 /* ---------- replay, offers, chat ---------- */
 
@@ -573,7 +575,45 @@ td.outcome { font-weight: 600; }
 td.diff { font-weight: 600; }
 #profile-empty { padding: 28px 16px; margin: 0; color: var(--dim); text-align: center; }
 
+/* ---------- tournaments ---------- */
+
+#tournaments, #tournament { max-width: 900px; margin: 24px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+.note { margin: 0; color: var(--dim); font-size: 13px; }
+.table-box { padding-bottom: 8px; overflow-x: auto; }
+.table-box h2 { padding: 14px 16px; font-size: 18px; }
+.table-box .note { padding: 0 16px 12px; }
+.table-box .note:empty { display: none; }
+.box-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; }
+.box-head h1, #tournament-name { margin: 0; font-weight: 300; font-size: 30px; color: var(--strong); }
+.table-box table { width: 100%; border-collapse: collapse; }
+.table-box th { text-align: left; font-weight: 400; color: var(--dim); padding: 6px 16px; border-bottom: 1px solid var(--line); background: var(--panel-hi); }
+.table-box td { padding: 9px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.table-box td.strong { font-weight: 600; color: var(--strong); }
+.table-box td a { color: inherit; }
+.table-box td a:hover { color: var(--link); }
+.table-box .empty { padding: 28px 16px; margin: 0; color: var(--dim); text-align: center; }
+#tournaments-list tr { cursor: pointer; }
+#tournaments-list tr:hover { background: color-mix(in srgb, var(--brand) 22%, var(--panel)); color: #fff; }
+td.status.running { color: #7eb82f; font-weight: 600; }
+td.status.finished { color: var(--dim); }
+
+#tournament-head { padding: 22px 24px; }
+#tournament-meta { margin: 4px 0 0; color: var(--dim); }
+#tournament-clock { font-size: 22px; color: var(--brand); margin-top: 10px; font-variant-numeric: tabular-nums; }
+#tournament-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; min-height: 34px; }
+#tournament-note.waiting { animation: pulse 1.4s ease-in-out infinite; }
+#tournament-standings tr.me { background: color-mix(in srgb, var(--link) 14%, var(--panel)); }
+#tournament-standings tr.withdrawn { opacity: 0.5; }
+#tournament-standings td.score { font-weight: 700; color: var(--strong); font-size: 15px; }
+#tournament-standings td.rank { color: var(--dim); width: 1%; }
+#tournament-standings .rating { color: var(--dim); font-size: 13px; margin-left: 6px; }
+#tournament-standings td.watch { text-align: right; }
+#tournament-standings td.watch a { color: var(--link); text-transform: uppercase; font-size: 12px; font-weight: 600; }
+
 @media (max-width: 560px) {
+  #tournament-standings th:nth-child(4), #tournament-standings td:nth-child(4) { display: none; }
+  #tournaments th:nth-child(3), #tournaments td:nth-child(3) { display: none; }
+  .table-box th, .table-box td { padding-left: 10px; padding-right: 10px; }
   #card-picker { grid-template-columns: repeat(3, 1fr); }
   #live th:nth-child(4), #live td:nth-child(4), #live th:nth-child(5), #live td:nth-child(5) { display: none; }
 }

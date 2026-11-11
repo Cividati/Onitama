@@ -4,6 +4,8 @@ Play [Onitama](https://en.wikipedia.org/wiki/Onitama) in the browser, with a lic
 
 - **Quick pairing** at 3+2, 5+0 or 10+0: click a time control and you are matched with the next player who picks the same one.
 - **Play with a friend**: create a game (untimed or timed) and send the invite link.
+- **Play with the computer**: easy, medium or hard bot, untimed or timed. Bot games are never rated.
+- **Tournaments** (needs accounts): anyone signed in can schedule an arena. While it runs, the players on the tournament page are paired again and again; a win scores 2 points, a draw 1. Tournament games are rated.
 - **In the game**: clocks, chat, draw offers, takeback requests, resign and rematch.
 - **Replay**: step through the moves with the buttons under the clock, the arrow keys, or by clicking the move list. A finished game has an "Analysis board" link that encodes the whole game in the URL.
 - **Spectate** any running game from the lobby's live list.
@@ -40,11 +42,11 @@ railway up
 
 Merging a pull request into `main` deploys automatically: the Railway service is connected to this repository and builds every push to `main`.
 
-Run a single instance: games in progress are kept in memory, so they are lost on restart and can't be shared across replicas. Accounts and finished games live in Postgres.
+Run a single instance: games in progress are kept in memory, so they are lost on restart and can't be shared across replicas. Accounts, finished games and tournament scores live in Postgres; a restart during a tournament drops the games being played, and the players are paired again when they return to the tournament page.
 
 ## Layout
 
 - `public/game.js` — rules engine, shared by server and browser
 - `server.js` — HTTP server: rooms, pairing, clocks, move validation, Server-Sent Events for live updates
-- `lib/` — accounts and sessions, Elo ratings, Postgres schema
+- `lib/` — accounts and sessions, Elo ratings, tournaments, the bot's search, Postgres schema
 - `public/client.js`, `index.html`, `style.css` — the UI

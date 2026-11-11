@@ -58,6 +58,8 @@
   }
 
   const ratingText = (player) => `${player.rating}${player.provisional ? '?' : ''}`;
+  // "name (1500)" for an account, just the name for a bot.
+  const nameAndRating = (player) => (player.bot ? player.name : `${player.name} (${ratingText(player)})`);
   const profileHref = (name) => `/?user=${encodeURIComponent(name)}`;
 
   // ---------- sound ----------
@@ -158,15 +160,18 @@
       button.addEventListener('click', () => toggleSeek(button));
     }
     bindFriendDialog();
+    bindBotDialog();
   }
 
-  // Moves from the lobby into a room without a page load, so the click that
-  // started it still counts as the interaction browsers require for sound.
+  // Moves from the lobby or a tournament into a room without a page load, so the
+  // click that started it still counts as the interaction browsers require for sound.
   function enterRoom(code) {
     clearInterval(lobbyTimer);
+    clearInterval(tourTimer);
     if (seek) seek.events.close();
+    if (tourEvents) tourEvents.close();
     history.pushState(null, '', `/?room=${code}`);
-    $('lobby').hidden = true;
+    $('lobby').hidden = $('tournament').hidden = true;
     room = code;
     startGame();
   }
@@ -231,6 +236,23 @@
     });
   }
 
+  function bindBotDialog() {
+    $('play-bot').addEventListener('click', () => {
+      $('bot-error').textContent = '';
+      $('bot-dialog').showModal();
+    });
+    $('bot-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const { room: code } = await post('', { tc: $('bot-tc').value, bot: $('bot-level').value });
+        $('bot-dialog').close();
+        enterRoom(code);
+      } catch (err) {
+        $('bot-error').textContent = err.message;
+      }
+    });
+  }
+
   async function refreshLobby() {
     refreshLive();
     if (!accountsOn) return;
@@ -258,7 +280,7 @@
       return; // keep the last list; the next poll retries
     }
     $('live-empty').hidden = games.length > 0;
-    const who = (player) => (player ? `${player.name} (${ratingText(player)})` : 'Anonymous');
+    const who = (player) => (player ? nameAndRating(player) : 'Anonymous');
     $('live-list').replaceChildren(
       ...games.map((game) => {
         const href = `/?room=${game.room}&watch`;
@@ -328,6 +350,194 @@
     );
   }
 
+  // ---------- tournaments ----------
+
+  const tournamentHref = (id) => `/?tournament=${id}`;
+  let tour = null; // latest snapshot of the tournament on screen
+  let tourEvents = null;
+  let tourTimer = null;
+  let tourSkew = 0; // the server's clock minus ours
+
+  const dateText = (ms) => new Date(ms).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  const durationText = (minutes) => (minutes < 60 ? `${minutes} min` : `${minutes / 60} h`);
+
+  // "4:32", or "1:04:32" from an hour up.
+  function countdown(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const two = (n) => String(n).padStart(2, '0');
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    return hours ? `${hours}:${two(minutes)}:${two(total % 60)}` : `${minutes}:${two(total % 60)}`;
+  }
+
+  async function showTournaments() {
+    $('tournaments').hidden = false;
+    document.title = 'Tournaments — Onitama';
+    $('tournament-new').hidden = !account;
+    bindTournamentDialog();
+    const refresh = async () => {
+      let list;
+      try {
+        list = (await request('GET', '/api/tournaments')).tournaments;
+      } catch (err) {
+        $('tournaments-note').textContent = err.message;
+        return;
+      }
+      $('tournaments-note').textContent = account ? '' : 'Sign in to create or join a tournament.';
+      $('tournaments-empty').hidden = list.length > 0;
+      $('tournaments-list').replaceChildren(
+        ...list.map((t) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td class="strong"><a></a></td><td class="tc"></td><td class="duration"></td><td class="starts"></td>' +
+            '<td class="players"></td><td class="status"></td>';
+          tr.querySelector('a').textContent = t.name;
+          tr.querySelector('a').href = tournamentHref(t.id);
+          tr.querySelector('.tc').textContent = t.tc;
+          tr.querySelector('.duration').textContent = durationText(t.minutes);
+          tr.querySelector('.starts').textContent = dateText(t.startsAt);
+          tr.querySelector('.players').textContent = t.players;
+          const status = tr.querySelector('.status');
+          status.classList.add(t.status);
+          status.textContent = { upcoming: 'Upcoming', running: 'Running', finished: 'Finished' }[t.status];
+          tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+          return tr;
+        })
+      );
+    };
+    refresh();
+    setInterval(refresh, 10000);
+  }
+
+  function bindTournamentDialog() {
+    $('tournament-new').addEventListener('click', () => {
+      // datetime-local wants local time as YYYY-MM-DDTHH:MM; default to five minutes from now.
+      const soon = new Date(Date.now() + 5 * 60 * 1000);
+      soon.setMinutes(soon.getMinutes() - soon.getTimezoneOffset());
+      $('tournament-form-start').value = soon.toISOString().slice(0, 16);
+      $('tournament-form-error').textContent = '';
+      $('tournament-dialog').showModal();
+    });
+    $('tournament-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const { id } = await request('POST', '/api/tournaments', {
+          name: $('tournament-form-name').value,
+          tc: $('tournament-form-tc').value,
+          minutes: Number($('tournament-form-minutes').value),
+          startsAt: new Date($('tournament-form-start').value).getTime(),
+        });
+        location.href = tournamentHref(id);
+      } catch (err) {
+        $('tournament-form-error').textContent = err.message;
+      }
+    });
+  }
+
+  const myEntry = () => (account && tour ? tour.standings.find((p) => p.id === account.id) : null) || null;
+
+  function showTournament(id) {
+    $('tournament').hidden = false;
+    const act = async (action) => {
+      try {
+        $('tournament-error').textContent = '';
+        await request('POST', `/api/tournaments/${encodeURIComponent(id)}/${action}`, {});
+      } catch (err) {
+        $('tournament-error').textContent = err.message;
+      }
+    };
+    $('tournament-join').addEventListener('click', () => act('join'));
+    $('tournament-withdraw').addEventListener('click', () => act('withdraw'));
+
+    tourEvents = new EventSource(`/api/tournaments/${encodeURIComponent(id)}/events`);
+    tourEvents.onmessage = (e) => {
+      tour = JSON.parse(e.data);
+      tourSkew = tour.now - Date.now();
+      if (tour.status === 'finished') tourEvents.close(); // nothing more will change
+      // A game of ours is running (e.g. after a reload): go back to it.
+      const me = myEntry();
+      if (me && me.room && storedToken(me.room)) return enterRoom(me.room);
+      renderTournament();
+    };
+    tourEvents.addEventListener('paired', (e) => {
+      const paired = JSON.parse(e.data);
+      storeToken(paired.room, paired.token);
+      enterRoom(paired.room);
+    });
+    tourEvents.onerror = () => {
+      if (tour) return; // a dropped connection reconnects by itself
+      tourEvents.close();
+      history.replaceState(null, '', '/');
+      $('tournament').hidden = true;
+      showLobby('That tournament could not be found.');
+    };
+    tourTimer = setInterval(renderTournamentClock, 1000);
+  }
+
+  function renderTournamentClock() {
+    if (!tour) return;
+    const now = Date.now() + tourSkew;
+    let text;
+    if (tour.status === 'finished') text = `Finished ${dateText(tour.endsAt)}`;
+    else if (tour.status === 'running') text = `${countdown(tour.endsAt - now)} left`;
+    else if (tour.startsAt - now < 24 * 60 * 60 * 1000) text = `Starts in ${countdown(tour.startsAt - now)}`;
+    else text = `Starts ${dateText(tour.startsAt)}`;
+    $('tournament-clock').textContent = text;
+  }
+
+  function renderTournament() {
+    const t = tour;
+    const me = myEntry();
+    const open = t.status !== 'finished';
+    const playing = !!me && !me.withdrawn;
+    document.title = `${t.name} — Onitama`;
+    $('tournament-name').textContent = t.name;
+    $('tournament-meta').textContent =
+      `${t.tc} • ${durationText(t.minutes)} • Rated arena${t.createdBy ? ` • by ${t.createdBy}` : ''}`;
+    renderTournamentClock();
+
+    $('tournament-join').hidden = !(account && open && !playing);
+    $('tournament-join').textContent = me ? 'Rejoin' : 'Join';
+    $('tournament-withdraw').hidden = !(open && playing);
+    const note = $('tournament-note');
+    note.className = '';
+    const leader = t.standings[0];
+    if (!open) note.textContent = leader && leader.played ? `Winner: ${leader.name}` : 'The tournament is over.';
+    else if (!account) note.textContent = 'Sign in to join.';
+    else if (!playing) note.textContent = me ? 'You withdrew. Your score is kept.' : '';
+    else if (t.status === 'upcoming') note.textContent = 'You are in. Keep this page open — your first game starts by itself.';
+    else if (me.room) note.textContent = 'Your game is in progress.';
+    else {
+      note.textContent = 'Waiting for an opponent…';
+      note.className = 'waiting';
+    }
+
+    $('tournament-empty').hidden = t.standings.length > 0;
+    $('tournament-standings').replaceChildren(
+      ...t.standings.map((p, i) => {
+        const tr = document.createElement('tr');
+        tr.className = `${me && p.id === me.id ? 'me' : ''}${p.withdrawn ? ' withdrawn' : ''}`;
+        tr.innerHTML =
+          '<td class="rank"></td><td class="strong"><a></a><span class="rating"></span></td><td class="played"></td>' +
+          '<td class="wdl"></td><td class="score"></td><td class="watch"></td>';
+        tr.querySelector('.rank').textContent = i + 1;
+        tr.querySelector('a').textContent = p.name;
+        tr.querySelector('a').href = profileHref(p.name);
+        tr.querySelector('.rating').textContent = ratingText(p);
+        tr.querySelector('.played').textContent = p.played;
+        tr.querySelector('.wdl').textContent = `${p.wins} / ${p.draws} / ${p.losses}`;
+        tr.querySelector('.score').textContent = p.score;
+        if (p.room) {
+          const watch = document.createElement('a');
+          watch.href = `/?room=${p.room}&watch`;
+          watch.textContent = 'Playing';
+          tr.querySelector('.watch').append(watch);
+        }
+        return tr;
+      })
+    );
+  }
+
   // ---------- analysis board ----------
   // A finished game is either stored on the server (/?game=ID, for signed-in
   // players) or travels in the URL itself (/?analysis=…), deal and moves.
@@ -387,7 +597,9 @@
     try {
       const { game: row } = await request('GET', `/api/games/${encodeURIComponent(id)}`);
       const player = (color) =>
-        row[`${color}_name`] ? { id: row[`${color}_id`], name: row[`${color}_name`], rating: row[`${color}_rating`] } : null;
+        row[`${color}_name`]
+          ? { id: row[`${color}_id`], name: row[`${color}_name`], rating: row[`${color}_rating`], bot: row[`${color}_id`] === null }
+          : null;
       startAnalysis(rebuildGame(row.initial, row.moves, row.winner, row.reason), {
         players: { red: player('red'), blue: player('blue') },
         rated: row.rated,
@@ -674,7 +886,7 @@
 
   // "name 1500 +8": a link to the profile for signed-in players, with the rating change once known.
   function identity(color) {
-    const player = snap.players[color];
+    const player = snap.players[color] && !snap.players[color].bot ? snap.players[color] : null;
     const wrap = document.createElement('span');
     wrap.className = 'identity';
     const name = document.createElement(player ? 'a' : 'span');
@@ -712,7 +924,8 @@
 
   function renderInfo() {
     const mode = snap.rated ? 'Rated' : 'Casual';
-    $('info-title').textContent = `${analysis ? 'Analysis • ' : ''}${snap.tc || 'Unlimited'} • ${mode} • Onitama`;
+    const event = snap.tournament ? snap.tournament.name : 'Onitama';
+    $('info-title').textContent = `${analysis ? 'Analysis • ' : ''}${snap.tc || 'Unlimited'} • ${mode} • ${event}`;
     $('info-players').replaceChildren(
       ...['red', 'blue'].map((color) => {
         const row = document.createElement('div');
@@ -929,7 +1142,11 @@
     resign.textContent = resignArmed ? 'Click again to resign' : '⚑ Resign';
     resign.classList.toggle('armed', resignArmed);
 
-    $('rematch').hidden = !(g.winner && me);
+    $('rematch').hidden = !(g.winner && me) || !!snap.tournament;
+    // Players go back for their next pairing once the game is over; spectators at any time.
+    const back = $('back-tournament');
+    back.hidden = !snap.tournament || (!!me && !g.winner);
+    if (snap.tournament) back.href = tournamentHref(snap.tournament.id);
     const link = $('analysis');
     link.hidden = analysis || !g.winner || !g.history.length;
     if (!link.hidden) link.href = analysisHref(g);
@@ -989,8 +1206,11 @@
     renderAccount();
     bindDialogs();
     bindBoardResize();
+    $('nav-tournaments').hidden = !accountsOn;
 
     if (params.get('user')) showProfile(params.get('user'));
+    else if (params.has('tournaments')) showTournaments();
+    else if (params.get('tournament')) showTournament(params.get('tournament'));
     else if (params.get('game')) startStoredAnalysis(params.get('game'));
     else if (params.get('analysis')) startUrlAnalysis(params.get('analysis'));
     else if (room) startGame();
