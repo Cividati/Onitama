@@ -10,9 +10,23 @@
   let analysis = false; // showing a finished game instead of a live room
 
   const NAME = { red: 'Red', blue: 'Blue' };
-  const PIECE_SVG = {
-    student: '<circle cx="20" cy="12" r="7"/><path d="M9 35c0-9 4-14 11-14s11 5 11 14z"/>',
-    master: '<path d="M6 11l7 7 7-12 7 12 7-7-3 16H9z"/><rect x="8" y="29" width="24" height="6" rx="2"/>',
+  // Piece shapes, drawn in a 40×40 box and filled with the owner's colour.
+  const PIECE_SETS = {
+    classic: {
+      label: 'Classic',
+      student: '<circle cx="20" cy="12" r="7"/><path d="M9 35c0-9 4-14 11-14s11 5 11 14z"/>',
+      master: '<path d="M6 11l7 7 7-12 7 12 7-7-3 16H9z"/><rect x="8" y="29" width="24" height="6" rx="2"/>',
+    },
+    discs: {
+      label: 'Discs',
+      student: '<circle cx="20" cy="20" r="13"/><circle cx="20" cy="20" r="7.5" fill="none"/>',
+      master: '<circle cx="20" cy="20" r="16"/><path d="M11 26l-2-11 5.5 5 5.5-9 5.5 9 5.5-5-2 11z" fill="#fff" fill-opacity="0.9"/>',
+    },
+    tiles: {
+      label: 'Tiles',
+      student: '<path d="M20 6l9 5 3 23H8l3-23z"/><path d="M15 27h10" fill="none"/>',
+      master: '<path d="M20 3l11 6 4 27H5l4-27z"/><circle cx="20" cy="21" r="5.5" fill="#fff" fill-opacity="0.9"/>',
+    },
   };
 
   // Squares are named like chess, from Red's side: files a–e, ranks 1–5.
@@ -150,6 +164,48 @@
       capture: (a, t) => { tone(a, t, { freq: 1318.5, gain: 0.07, decay: 0.2 }); tone(a, t + 0.06, { freq: 1760, gain: 0.07, decay: 0.25 }); },
       alert: (a, t) => { tone(a, t, { freq: 1046.5, gain: 0.08, decay: 0.45 }); tone(a, t + 0.13, { freq: 1568, gain: 0.08, decay: 0.6 }); },
     },
+    stone: {
+      label: 'Stone',
+      move: (a, t) => { tick(a, t, { freq: 3400, q: 4, gain: 0.5, length: 0.018 }); tone(a, t, { freq: 900, to: 700, gain: 0.05, decay: 0.03 }); },
+      capture: (a, t) => { SOUND_THEMES.stone.move(a, t); tick(a, t + 0.05, { freq: 2600, q: 4, gain: 0.55, length: 0.022 }); },
+      alert: (a, t) => { tick(a, t, { freq: 3000, q: 5, gain: 0.5, length: 0.02 }); tick(a, t + 0.12, { freq: 3800, q: 5, gain: 0.5, length: 0.02 }); },
+    },
+    felt: {
+      label: 'Felt',
+      move: (a, t) => tick(a, t, { freq: 420, q: 0.8, gain: 0.7, length: 0.05 }),
+      capture: (a, t) => { tick(a, t, { freq: 420, q: 0.8, gain: 0.7, length: 0.05 }); tick(a, t + 0.07, { freq: 320, q: 0.8, gain: 0.8, length: 0.06 }); },
+      alert: (a, t) => { tone(a, t, { freq: 330, gain: 0.12, decay: 0.35 }); tone(a, t + 0.14, { freq: 440, gain: 0.12, decay: 0.45 }); },
+    },
+    pop: {
+      label: 'Pop',
+      move: (a, t) => tone(a, t, { freq: 420, to: 900, gain: 0.14, decay: 0.06 }),
+      capture: (a, t) => { tone(a, t, { freq: 420, to: 900, gain: 0.14, decay: 0.06 }); tone(a, t + 0.07, { freq: 560, to: 1200, gain: 0.14, decay: 0.06 }); },
+      alert: (a, t) => { [500, 650, 820].forEach((freq, i) => tone(a, t + i * 0.07, { freq, to: freq * 1.8, gain: 0.12, decay: 0.07 })); },
+    },
+    drop: {
+      label: 'Water drop',
+      move: (a, t) => tone(a, t, { freq: 1400, to: 600, gain: 0.12, decay: 0.09 }),
+      capture: (a, t) => { tone(a, t, { freq: 1400, to: 600, gain: 0.12, decay: 0.09 }); tone(a, t + 0.08, { freq: 1100, to: 450, gain: 0.12, decay: 0.11 }); },
+      alert: (a, t) => { tone(a, t, { freq: 900, to: 1500, gain: 0.1, decay: 0.12 }); tone(a, t + 0.13, { freq: 1200, to: 2000, gain: 0.1, decay: 0.16 }); },
+    },
+    pluck: {
+      label: 'Pluck',
+      move: (a, t) => tone(a, t, { freq: 329.63, gain: 0.14, decay: 0.22, type: 'triangle' }),
+      capture: (a, t) => { tone(a, t, { freq: 246.94, gain: 0.14, decay: 0.2, type: 'triangle' }); tone(a, t + 0.08, { freq: 329.63, gain: 0.14, decay: 0.25, type: 'triangle' }); },
+      alert: (a, t) => { [329.63, 415.3, 493.88].forEach((freq, i) => tone(a, t + i * 0.1, { freq, gain: 0.13, decay: 0.4, type: 'triangle' })); },
+    },
+    bell: {
+      label: 'Bell',
+      move: (a, t) => { tone(a, t, { freq: 880, gain: 0.07, decay: 0.35 }); tone(a, t, { freq: 2424, gain: 0.025, decay: 0.2 }); },
+      capture: (a, t) => { SOUND_THEMES.bell.move(a, t); tone(a, t + 0.08, { freq: 1174.7, gain: 0.07, decay: 0.4 }); },
+      alert: (a, t) => { [[783.99, 0], [1046.5, 0.16]].forEach(([freq, delay]) => { tone(a, t + delay, { freq, gain: 0.09, decay: 0.9 }); tone(a, t + delay, { freq: freq * 2.76, gain: 0.03, decay: 0.5 }); }); },
+    },
+    retro: {
+      label: 'Retro',
+      move: (a, t) => tone(a, t, { freq: 660, gain: 0.05, decay: 0.05, type: 'square' }),
+      capture: (a, t) => { tone(a, t, { freq: 440, gain: 0.05, decay: 0.05, type: 'square' }); tone(a, t + 0.06, { freq: 880, gain: 0.05, decay: 0.06, type: 'square' }); },
+      alert: (a, t) => { [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => tone(a, t + i * 0.07, { freq, gain: 0.05, decay: 0.08, type: 'square' })); },
+    },
     off: { label: 'No sound' },
   };
 
@@ -166,49 +222,146 @@
     }).catch(() => {});
   }
 
-  // ---------- options menu ----------
+  // ---------- menu: account, sound, theme, board, piece set ----------
 
-  function bindOptions() {
-    const save = () => {
+  const PREFS_KEY = 'onitama:prefs';
+  const THEMES = { dark: 'Dark', light: 'Light' };
+  const BOARDS = {
+    brown: { label: 'Brown', light: '#f0d9b5', dark: '#b58863' },
+    blue: { label: 'Blue', light: '#dee3e6', dark: '#8ca2ad' },
+    green: { label: 'Green', light: '#ffffdd', dark: '#86a666' },
+    grey: { label: 'Grey', light: '#dcdcdc', dark: '#8f8f8f' },
+    sand: { label: 'Sand', light: '#efe3c0', dark: '#c9b27c' },
+    purple: { label: 'Purple', light: '#e8e0f0', dark: '#9f90b0' },
+  };
+  const prefs = { theme: 'dark', board: 'brown', pieces: 'classic' };
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREFS_KEY)) || {};
+    if (Object.hasOwn(THEMES, saved.theme)) prefs.theme = saved.theme;
+    if (Object.hasOwn(BOARDS, saved.board)) prefs.board = saved.board;
+    if (Object.hasOwn(PIECE_SETS, saved.pieces)) prefs.pieces = saved.pieces;
+  } catch { /* keep the defaults */ }
+
+  function applyPrefs() {
+    const root = document.documentElement;
+    root.dataset.theme = prefs.theme;
+    root.dataset.pieces = prefs.pieces;
+    root.style.setProperty('--sq-light', BOARDS[prefs.board].light);
+    root.style.setProperty('--sq-dark', BOARDS[prefs.board].dark);
+  }
+  applyPrefs();
+
+  const pieceSvg = (set, color, kind, extra) =>
+    `<svg class="piece ${color} ${kind}${extra || ''}" viewBox="0 0 40 40" aria-hidden="true">${PIECE_SETS[set][kind]}</svg>`;
+
+  function bindMenu() {
+    const panel = $('menu-panel');
+    const button = $('menu-button');
+    let pingTimer = null;
+
+    const showPage = (name) => {
+      for (const page of panel.querySelectorAll('.menu-page')) page.hidden = page.dataset.page !== name;
+    };
+    const close = () => {
+      panel.hidden = true;
+      button.setAttribute('aria-expanded', 'false');
+      clearInterval(pingTimer);
+    };
+    const open = () => {
+      showPage('main');
+      panel.hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      measurePing();
+      pingTimer = setInterval(measurePing, 3000);
+    };
+    button.addEventListener('click', () => (panel.hidden ? open() : close()));
+    document.addEventListener('pointerdown', (e) => {
+      if (!panel.hidden && !$('menu').contains(e.target)) close();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !panel.hidden) close();
+    });
+    for (const item of panel.querySelectorAll('[data-open]')) {
+      item.addEventListener('click', () => showPage(item.dataset.open));
+    }
+    for (const back of panel.querySelectorAll('.back')) back.addEventListener('click', () => showPage('main'));
+
+    // Sound: one list of themes per kind of sound; choosing one plays it.
+    const saveSound = () => {
       try { localStorage.setItem(SOUND_KEY, JSON.stringify(sound)); } catch { /* private mode */ }
     };
-    // One list of themes per kind of sound; choosing one plays it.
-    for (const [setting, id, preview] of [['move', 'option-move-sound', 'move'], ['alert', 'option-alert-sound', 'alert']]) {
+    for (const [setting, id] of [['move', 'option-move-sound'], ['alert', 'option-alert-sound']]) {
       const select = $(id);
       for (const [key, theme] of Object.entries(SOUND_THEMES)) select.add(new Option(theme.label, key));
       select.value = sound[setting];
       select.addEventListener('change', () => {
         sound[setting] = select.value;
-        save();
-        playSound(preview);
+        saveSound();
+        playSound(setting);
       });
     }
-    for (const button of document.querySelectorAll('#options-dialog [data-play]')) {
-      button.addEventListener('click', () => playSound(button.dataset.play));
+    for (const play of panel.querySelectorAll('[data-play]')) {
+      play.addEventListener('click', () => playSound(play.dataset.play));
     }
     const volume = $('option-volume');
     volume.value = Math.round(sound.volume * 100);
     volume.addEventListener('input', () => {
       sound.volume = Number(volume.value) / 100;
-      save();
+      saveSound();
     });
     volume.addEventListener('change', () => playSound('move'));
-    $('options-button').addEventListener('click', () => $('options-dialog').showModal());
+
+    // Theme, board and piece set: a list each, applied as soon as one is picked.
+    const choices = (containerId, setting, options, decorate) => {
+      const draw = () => {
+        $(containerId).replaceChildren(
+          ...Object.entries(options).map(([key, option]) => {
+            const item = document.createElement('button');
+            item.className = `menu-item choice${prefs[setting] === key ? ' selected' : ''}`;
+            if (decorate) item.innerHTML = decorate(key, option);
+            item.append(option.label || option);
+            item.addEventListener('click', () => {
+              prefs[setting] = key;
+              try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
+              applyPrefs();
+              draw();
+              if (snap) render();
+            });
+            return item;
+          })
+        );
+      };
+      draw();
+    };
+    choices('theme-choices', 'theme', THEMES);
+    choices('board-choices', 'board', BOARDS, (key, board) =>
+      `<span class="swatch2" style="background: linear-gradient(135deg, ${board.light} 50%, ${board.dark} 50%)"></span>`);
+    choices('pieces-choices', 'pieces', PIECE_SETS, (key) => pieceSvg(key, 'red', 'master') + pieceSvg(key, 'blue', 'student'));
+  }
+
+  // Round trip to the server and how busy it is, shown at the bottom of the menu.
+  async function measurePing() {
+    const sent = performance.now();
+    let ping = null;
+    let server = null;
+    try {
+      server = (await request('GET', '/api/ping')).lag;
+      ping = Math.round(performance.now() - sent);
+    } catch { /* offline: show dashes */ }
+    $('ping-ms').textContent = ping === null ? '–' : ping;
+    $('server-ms').textContent = server === null ? '–' : server;
+    const bars = ping === null ? 0 : ping < 150 ? 4 : ping < 300 ? 3 : ping < 500 ? 2 : 1;
+    document.querySelectorAll('#signal i').forEach((bar, i) => bar.classList.toggle('on', i < bars));
   }
 
   // ---------- account bar and sign-in dialog ----------
 
   function renderAccount() {
-    $('account').hidden = !accountsOn;
-    $('signin').hidden = !!account;
-    $('signout').hidden = $('me-link').hidden = !account;
-    if (account) {
-      const link = $('me-link');
-      link.href = profileHref(account.name);
-      link.innerHTML = '<span></span><em></em>';
-      link.children[0].textContent = account.name;
-      link.children[1].textContent = ratingText(account);
-    }
+    $('signin').hidden = !accountsOn || !!account;
+    $('menu-account').hidden = !account;
+    $('menu-name').textContent = account ? account.name : '';
+    $('menu-rating').textContent = account ? ratingText(account) : '';
+    if (account) $('menu-profile').href = profileHref(account.name);
   }
 
   function bindDialogs() {
@@ -1153,7 +1306,7 @@
       if (col === 4) html += `<span class="coord rank">${rankOf(index)}</span>`;
       if (piece) {
         const kind = piece.m ? 'master' : 'student';
-        html += `<svg class="piece ${piece.c} ${kind}" viewBox="0 0 40 40" aria-hidden="true">${PIECE_SVG[kind]}</svg>`;
+        html += pieceSvg(prefs.pieces, piece.c, kind, piece.c === view ? '' : ' far');
       }
       cell.innerHTML = html;
       cell.setAttribute('aria-label', piece ? `${square(index)}, ${piece.c} ${piece.m ? 'master' : 'student'}` : square(index));
@@ -1353,7 +1506,7 @@
     } catch { /* accounts stay off */ }
     renderAccount();
     bindDialogs();
-    bindOptions();
+    bindMenu();
     bindBoardResize();
     $('nav-tournaments').hidden = !accountsOn;
 

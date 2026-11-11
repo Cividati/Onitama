@@ -11,11 +11,61 @@
   <header id="top">
     <a href="/" class="brand">onitama</a>
     <nav><a href="/">Play</a><a href="/?tournaments" id="nav-tournaments" hidden>Tournaments</a></nav>
-    <button id="options-button" class="link">Options</button>
-    <div id="account" hidden>
+    <div id="menu">
       <button id="signin" class="link" hidden>Sign in</button>
-      <a id="me-link" hidden></a>
-      <button id="signout" class="link" hidden>Sign out</button>
+      <button id="menu-button" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+        <span id="menu-name"></span><em id="menu-rating"></em>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5"/><circle cx="12" cy="9.5" r="3.6"/><path d="M5 19.5c1.2-3.4 3.8-5 7-5s5.8 1.6 7 5"/></svg>
+      </button>
+      <div id="menu-panel" hidden>
+        <div class="menu-page" data-page="main">
+          <div id="menu-account" hidden>
+            <a id="menu-profile" class="menu-item"><span class="dot on"></span>Profile</a>
+            <button id="signout" class="menu-item"><span class="glyph">⏻</span>Sign out</button>
+          </div>
+          <button class="menu-item sub" data-open="sound">Sound</button>
+          <button class="menu-item sub" data-open="theme">Theme</button>
+          <button class="menu-item sub" data-open="board">Board</button>
+          <button class="menu-item sub" data-open="pieces">Piece set</button>
+          <div id="menu-ping">
+            <div>PING <b id="ping-ms">–</b> ms<br>SERVER <b id="server-ms">–</b> ms</div>
+            <div id="signal" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="menu-page" data-page="sound" hidden>
+          <button class="menu-item back">Sound</button>
+          <div class="menu-form">
+            <label>Pieces
+              <select id="option-move-sound"></select>
+              <span class="option-row">
+                <button type="button" class="button flat" data-play="move">▶ Move</button>
+                <button type="button" class="button flat" data-play="capture">▶ Capture</button>
+              </span>
+            </label>
+            <label>Game start / end
+              <select id="option-alert-sound"></select>
+              <span class="option-row">
+                <button type="button" class="button flat" data-play="alert">▶ Play</button>
+              </span>
+            </label>
+            <label>Volume
+              <input id="option-volume" type="range" min="0" max="100">
+            </label>
+          </div>
+        </div>
+        <div class="menu-page" data-page="theme" hidden>
+          <button class="menu-item back">Theme</button>
+          <div class="menu-choices" id="theme-choices"></div>
+        </div>
+        <div class="menu-page" data-page="board" hidden>
+          <button class="menu-item back">Board</button>
+          <div class="menu-choices" id="board-choices"></div>
+        </div>
+        <div class="menu-page" data-page="pieces" hidden>
+          <button class="menu-item back">Piece set</button>
+          <div class="menu-choices" id="pieces-choices"></div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -233,31 +283,6 @@
       <div class="dialog-actions">
         <button type="submit" class="button good" id="friend-create">Create game</button>
         <button type="button" class="button flat" data-close>Cancel</button>
-      </div>
-    </form>
-  </dialog>
-
-  <dialog id="options-dialog">
-    <form>
-      <h2>Options</h2>
-      <label>Sound of the pieces
-        <span class="option-row">
-          <select id="option-move-sound"></select>
-          <button type="button" class="button flat" data-play="move">▶ Move</button>
-          <button type="button" class="button flat" data-play="capture">▶ Capture</button>
-        </span>
-      </label>
-      <label>Sound when a game starts or ends
-        <span class="option-row">
-          <select id="option-alert-sound"></select>
-          <button type="button" class="button flat" data-play="alert">▶ Play</button>
-        </span>
-      </label>
-      <label>Volume
-        <input id="option-volume" type="range" min="0" max="100">
-      </label>
-      <div class="dialog-actions">
-        <button type="button" class="button" data-close>Done</button>
       </div>
     </form>
   </dialog>

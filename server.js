@@ -417,7 +417,17 @@ function validCards(cards) {
   return [...cards];
 }
 
+// How late the event loop runs its timers, in ms: the "server" figure in the menu.
+let lag = 0;
+let lastBeat = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  lag = Math.max(0, now - lastBeat - 1000);
+  lastBeat = now;
+}, 1000).unref();
+
 async function handleApi(req, res, url) {
+  if (url.pathname === '/api/ping') return json(res, 200, { lag: Math.round(lag) });
   if ((await accounts.route(req, res, url)) !== false) return;
   if ((await tournaments.route(req, res, url)) !== false) return;
   const parts = url.pathname.split('/').filter(Boolean); // ['api', 'rooms', code?, action?]
