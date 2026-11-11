@@ -41,7 +41,14 @@ Any host that runs `npm start` and provides `PORT` works. With Railway:
 railway up
 ```
 
-Merging a pull request into `main` deploys automatically: the Railway service is connected to this repository and builds every push to `main`.
+The Railway project has two environments, each with its own database:
+
+| Environment | Deploys from | When |
+| --- | --- | --- |
+| development — https://onitama-development.up.railway.app | `main` | every push to `main` |
+| production — https://onitama.up.railway.app | `production` | every published GitHub release |
+
+Publishing a release (`gh release create v1.2.3 --generate-notes`) runs `.github/workflows/release.yml`, which moves the `production` branch to the released commit; Railway then deploys it. Don't push to `production` by hand.
 
 Run a single instance: games in progress are kept in memory, so they are lost on restart and can't be shared across replicas. Accounts, finished games and tournament scores live in Postgres; a restart during a tournament drops the games being played, and the players are paired again when they return to the tournament page.
 

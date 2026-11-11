@@ -1,0 +1,20 @@
+# Publishing a GitHub release moves the `production` branch to the released
+# commit. Railway deploys production from that branch (and development from
+# `main`), so this is all a release needs to do: no Railway token involved.
+name: Release to production
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Point the production branch at the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH "repos/${{ github.repository }}/git/refs/heads/production" -f sha="$GITHUB_SHA" -F force=true
