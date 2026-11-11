@@ -31,7 +31,7 @@ All optional — with none of these set the game runs with accounts switched off
 | `DATABASE_URL` | Postgres connection string; enables accounts, ratings and match history. Tables are created on start. |
 | `DONATE_URL` | An `https://` link (Ko-fi, GitHub Sponsors, PayPal…) for the button on the Donate page. Without it the page says donations are not open yet. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enable "Continue with Google". The OAuth client's redirect URI must be `https://YOUR-DOMAIN/auth/google/callback`. |
-| `RESEND_API_KEY`, `MAIL_FROM` | Turn on outgoing email through [Resend](https://resend.com). `MAIL_FROM` is the sender, e.g. `Onitama <noreply@onitama.example>`, on a domain verified at Resend. With both set, a new password account must confirm its email address before it can sign in. Without them an email is still asked for, but nothing is sent and accounts work straight away. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Turn on outgoing email through [Resend](https://resend.com). `MAIL_FROM` is the sender, e.g. `Onitama <noreply@onitama.example>`, on a domain verified at Resend. With both set, a new password account must confirm its email address before it can sign in, and "Forgot your password?" emails a link to choose a new one. Without them an email is still asked for, but nothing is sent, accounts work straight away and passwords cannot be recovered. |
 | `MAIL_TO_CONSOLE` | Set to `1` to print emails to the server log instead of sending them (for development). |
 | `PUBLIC_URL` | Public origin (e.g. `https://onitama.example`). Used in emailed links and the Google redirect; set it whenever email is on, otherwise it is derived from the request. |
 

@@ -220,6 +220,33 @@
         <p>Confirmation links work once, for 24 hours. Sign in with your username and password to have a new one sent.</p>
         <button type="button" class="button" id="signup-expired-signin">Sign in</button>
       </div>
+      <form id="signup-forgot" hidden>
+        <h1>Forgot your password?</h1>
+        <p class="note">Enter your username or the email of your account and we will send you a link to choose a new password.</p>
+        <label>Username or email
+          <input id="forgot-login" autocomplete="username" required maxlength="254">
+        </label>
+        <p class="error" id="forgot-error" role="alert"></p>
+        <button type="submit" class="button good" id="forgot-submit">Send the link</button>
+      </form>
+      <div id="signup-forgot-sent" hidden>
+        <h1>Check your email</h1>
+        <p>If an account matches, we sent it a link to choose a new password. The link works once, for 1 hour.</p>
+        <p class="note">Nothing there? Look in the spam folder. Accounts created without an email cannot be recovered this way.</p>
+      </div>
+      <form id="signup-reset" hidden>
+        <h1>Choose a new password</h1>
+        <label>New password
+          <input id="reset-password" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+          <small>At least 8 characters.</small>
+        </label>
+        <label>Repeat password
+          <input id="reset-password2" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+        </label>
+        <p class="error" id="reset-error" role="alert"></p>
+        <button type="submit" class="button good" id="reset-submit">Save and sign in</button>
+        <p class="auth-switch"><a href="/?forgot">Ask for a new link</a></p>
+      </form>
     </section>
   </main>
 
@@ -358,6 +385,7 @@
       </label>
       <p class="error" id="auth-error" role="alert"></p>
       <button type="button" class="link" id="auth-resend" hidden>Send the confirmation email again</button>
+      <a href="/?forgot" class="auth-forgot" id="auth-forgot" hidden>Forgot your password?</a>
       <div class="dialog-actions">
         <button type="submit" class="button">Sign in</button>
         <button type="button" class="button flat" data-close>Cancel</button>

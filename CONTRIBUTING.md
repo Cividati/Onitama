@@ -25,7 +25,7 @@ docker run -d --rm --name onitama-pg -e POSTGRES_PASSWORD=dev -p 127.0.0.1:55432
 DATABASE_URL=postgres://postgres:dev@127.0.0.1:55432/postgres npm start
 ```
 
-Add `MAIL_TO_CONSOLE=1` to try the email confirmation flow: the confirmation link is printed in the server log instead of being sent.
+Add `MAIL_TO_CONSOLE=1` to try email confirmation and password recovery: the links are printed in the server log instead of being sent.
 
 The other settings (`DONATE_URL`, email, Google sign-in, `PUBLIC_URL`) are listed in the [README](README.md#configuration).
 

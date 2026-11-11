@@ -42,6 +42,7 @@
   let accountsOn = false;
   let donateUrl = null; // where the Donate page sends people, when the server has one
   let googleOn = false;
+  let mailOn = false; // the server can send email: confirmation and password recovery
 
   // latest server snapshot: { game, seated, online, spectators, you, players, rated, result, tc, clock, offers }
   let snap = null;
@@ -416,7 +417,7 @@
           password: $('auth-password').value,
         });
         // Back to the lobby from the sign-up page, otherwise stay where you are.
-        if (new URLSearchParams(location.search).has('signup')) location.href = '/';
+        if (['signup', 'forgot', 'reset'].some((key) => new URLSearchParams(location.search).has(key))) location.href = '/';
         else location.reload();
       } catch (err) {
         $('auth-error').textContent = err.message;
@@ -429,6 +430,7 @@
     $('google-login').hidden = $('auth-or').hidden = !googleOn;
     $('auth-error').textContent = '';
     $('auth-resend').hidden = true;
+    $('auth-forgot').hidden = !mailOn;
     $('auth-dialog').showModal();
   }
 
@@ -451,7 +453,58 @@
 
   function signupStep(step) {
     $('signup-form').hidden = step !== 'form';
-    for (const name of ['sent', 'verified', 'expired']) $(`signup-${name}`).hidden = step !== name;
+    for (const name of ['sent', 'verified', 'expired', 'forgot', 'forgot-sent', 'reset']) {
+      $(`signup-${name}`).hidden = step !== name;
+    }
+  }
+
+  // /?forgot asks where to send the link; /?reset=TOKEN is where that link lands.
+  function showRecover(step) {
+    if (!accountsOn) {
+      history.replaceState(null, '', '/');
+      return showLobby();
+    }
+    $('signup').hidden = false;
+    document.title = 'Recover your account — Onitama';
+    $('forgot-error').textContent = $('reset-error').textContent = '';
+    signupStep(step);
+  }
+
+  function bindRecover() {
+    $('auth-forgot').addEventListener('click', () => $('auth-dialog').close());
+    $('signup-forgot').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      $('forgot-error').textContent = '';
+      $('forgot-submit').disabled = true;
+      try {
+        await request('POST', '/api/password/forgot', { login: $('forgot-login').value });
+        signupStep('forgot-sent');
+      } catch (err) {
+        $('forgot-error').textContent = err.message;
+      } finally {
+        $('forgot-submit').disabled = false;
+      }
+    });
+    $('signup-reset').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if ($('reset-password').value !== $('reset-password2').value) {
+        $('reset-error').textContent = 'The two passwords are not the same';
+        return;
+      }
+      $('reset-error').textContent = '';
+      $('reset-submit').disabled = true;
+      try {
+        await request('POST', '/api/password/reset', {
+          token: new URLSearchParams(location.search).get('reset'),
+          password: $('reset-password').value,
+        });
+        location.href = '/'; // signed in with the new password
+      } catch (err) {
+        $('reset-error').textContent = err.message;
+      } finally {
+        $('reset-submit').disabled = false;
+      }
+    });
   }
 
   function bindSignup() {
@@ -1843,6 +1896,8 @@
     else if (query.has('tournaments')) showTournaments();
     else if (query.has('donate')) showDonate();
     else if (query.has('signup')) showSignup(query.get('signup'));
+    else if (query.has('forgot')) showRecover('forgot');
+    else if (query.get('reset')) showRecover('reset');
     else if (query.get('tournament')) showTournament(query.get('tournament'));
     else if (query.get('game')) startStoredAnalysis(query.get('game'));
     else if (query.get('analysis')) startUrlAnalysis(query.get('analysis'));
@@ -1887,6 +1942,7 @@
     accountsOn = !!me.accounts;
     donateUrl = me.donate || null;
     googleOn = !!me.google;
+    mailOn = !!me.mail;
     $('version').textContent = me.version || '';
     account = me.user || null;
     renderAccount();
@@ -1906,6 +1962,7 @@
     } catch { /* keep what we knew */ }
     bindDialogs();
     bindSignup();
+    bindRecover();
     bindMenu();
     bindBoardResize();
     fillTimeControls();

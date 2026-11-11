@@ -809,9 +809,9 @@ td.diff { font-weight: 600; }
 #signup { max-width: 460px; margin: 24px auto; padding: 0 16px; }
 #signup-box { padding: 26px 30px 24px; font-size: 15px; }
 #signup-box h1 { margin: 0 0 10px; font-weight: 300; font-size: 30px; color: var(--strong); }
-#signup-form { display: flex; flex-direction: column; gap: 14px; }
-#signup-form label { display: flex; flex-direction: column; gap: 5px; color: var(--dim); }
-#signup-form input {
+#signup-box form { display: flex; flex-direction: column; gap: 14px; }
+#signup-box label { display: flex; flex-direction: column; gap: 5px; color: var(--dim); }
+#signup-box input {
   background: var(--bg);
   color: var(--strong);
   border: 1px solid var(--line);
@@ -819,15 +819,16 @@ td.diff { font-weight: 600; }
   padding: 10px;
   font: inherit;
 }
-#signup-form input:focus { outline: 1px solid var(--link); }
-#signup-form small { font-size: 12px; }
-#signup-form .error { margin: 0; }
-#signup-submit { padding: 12px; font-size: 15px; }
+#signup-box input:focus { outline: 1px solid var(--link); }
+#signup-box small { font-size: 12px; }
+#signup-box .error { margin: 0; }
+#signup-box form .button.good { padding: 12px; font-size: 15px; }
 #signup-box > div .button { display: inline-block; margin-top: 6px; }
 #signup-box > div .note { margin: 12px 0 4px; }
 .auth-switch { margin: 0; text-align: center; color: var(--dim); font-size: 13.5px; }
 .auth-switch .link, #auth-resend { text-transform: none; font-size: inherit; letter-spacing: 0; }
 #auth-resend { align-self: flex-start; }
+.auth-forgot { align-self: flex-start; font-size: 13.5px; }
 
 #donate { max-width: 720px; margin: 24px auto; padding: 0 16px; }
 #donate-box { padding: 26px 30px 22px; font-size: 15px; }

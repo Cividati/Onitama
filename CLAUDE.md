@@ -23,7 +23,7 @@ DATABASE_URL=postgres://postgres:test@127.0.0.1:55432/postgres PORT=3977 node se
 
 - `public/game.js` — rules engine, UMD, shared by server and browser. Pure: no DOM, no dependencies. The board is a flat array, index `y * 5 + x`; `y = 0` is Blue's home row.
 - `server.js` — rooms (in memory), quick pairing, clocks, move validation, bot turns, SSE. Delegates `/api/me`, auth and profiles to `lib/accounts.js` and tournaments to `lib/tournaments.js`.
-- `lib/mail.js` — outgoing email through Resend's HTTP API. `mail.enabled` is false without `RESEND_API_KEY` and `MAIL_FROM`; email confirmation is only enforced when it is true (`mustVerify` in `lib/accounts.js`).
+- `lib/mail.js` — outgoing email through Resend's HTTP API. `mail.enabled` is false without `RESEND_API_KEY` and `MAIL_FROM`; email confirmation is only enforced, and password recovery only offered, when it is true (`mustVerify` and `forgotPassword` in `lib/accounts.js`).
 - `lib/db.js` — Postgres schema, created on start. `db.enabled` is false without `DATABASE_URL`, and every account feature must keep working as "off" in that case.
 - `public/client.js` — the whole UI in one IIFE. `index.html` holds one `<main>` per page; `style.css` holds every style.
 
