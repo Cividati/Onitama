@@ -9,7 +9,7 @@ Play [Onitama](https://en.wikipedia.org/wiki/Onitama) in the browser, with a lic
 - **In the game**: clocks, chat, draw offers, takeback requests, resign and rematch.
 - **Replay**: step through the moves with the buttons under the clock, the arrow keys, or by clicking the move list. A finished game has an "Analysis board" link that encodes the whole game in the URL.
 - **Spectate** any running game from the lobby's live list.
-- **Accounts** (optional): sign up with a username and password or with Google. Quick-pairing games between two signed-in players are rated (Elo, starting at 1500); every finished game of a signed-in player is kept in their match history and can be replayed.
+- **Accounts** (optional): sign up with a username, email and password, or with Google. When the server can send email, the address has to be confirmed before the account can be used. Quick-pairing games between two signed-in players are rated (Elo, starting at 1500); every finished game of a signed-in player is kept in their match history and can be replayed.
 - **Menu** (top right): profile and sign out, plus preferences kept in the browser — the sound of the pieces and of a game starting or ending (a dozen themes, or none, and the volume), a dark or light theme, board colours and piece sets. It also shows the ping to the server.
 
 ## Run
@@ -31,7 +31,9 @@ All optional — with none of these set the game runs with accounts switched off
 | `DATABASE_URL` | Postgres connection string; enables accounts, ratings and match history. Tables are created on start. |
 | `DONATE_URL` | An `https://` link (Ko-fi, GitHub Sponsors, PayPal…) for the button on the Donate page. Without it the page says donations are not open yet. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Enable "Continue with Google". The OAuth client's redirect URI must be `https://YOUR-DOMAIN/auth/google/callback`. |
-| `PUBLIC_URL` | Public origin (e.g. `https://onitama.example`) if it cannot be derived from the request |
+| `RESEND_API_KEY`, `MAIL_FROM` | Turn on outgoing email through [Resend](https://resend.com). `MAIL_FROM` is the sender, e.g. `Onitama <noreply@onitama.example>`, on a domain verified at Resend. With both set, a new password account must confirm its email address before it can sign in. Without them an email is still asked for, but nothing is sent and accounts work straight away. |
+| `MAIL_TO_CONSOLE` | Set to `1` to print emails to the server log instead of sending them (for development). |
+| `PUBLIC_URL` | Public origin (e.g. `https://onitama.example`). Used in emailed links and the Google redirect; set it whenever email is on, otherwise it is derived from the request. |
 
 ## Deploy
 

@@ -63,7 +63,7 @@
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Something went wrong');
+    if (!res.ok) throw Object.assign(new Error(data.error || 'Something went wrong'), { data });
     return data;
   }
   const post = (pathname, body) => request('POST', `/api/rooms${pathname}`, body || {});
@@ -397,10 +397,12 @@
     for (const button of document.querySelectorAll('dialog [data-close]')) {
       button.addEventListener('click', () => button.closest('dialog').close());
     }
-    $('signin').addEventListener('click', () => {
-      $('google-login').hidden = $('auth-or').hidden = !googleOn;
-      $('auth-error').textContent = '';
-      $('auth-dialog').showModal();
+    $('signin').addEventListener('click', openSignIn);
+    $('auth-signup').addEventListener('click', () => $('auth-dialog').close());
+    $('auth-resend').addEventListener('click', async () => {
+      $('auth-resend').hidden = true;
+      await resendVerification($('auth-username').value);
+      $('auth-error').textContent = 'We sent the link again. Check your inbox.';
     });
     $('signout').addEventListener('click', async () => {
       await request('POST', '/api/logout', {}).catch(() => {});
@@ -408,16 +410,86 @@
     });
     $('auth-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const action = e.submitter && e.submitter.value === 'register' ? 'register' : 'login';
       try {
-        await request('POST', `/api/${action}`, {
+        await request('POST', '/api/login', {
           username: $('auth-username').value,
           password: $('auth-password').value,
         });
-        location.reload();
+        // Back to the lobby from the sign-up page, otherwise stay where you are.
+        if (new URLSearchParams(location.search).has('signup')) location.href = '/';
+        else location.reload();
       } catch (err) {
         $('auth-error').textContent = err.message;
+        $('auth-resend').hidden = !(err.data && err.data.unverified);
       }
+    });
+  }
+
+  function openSignIn() {
+    $('google-login').hidden = $('auth-or').hidden = !googleOn;
+    $('auth-error').textContent = '';
+    $('auth-resend').hidden = true;
+    $('auth-dialog').showModal();
+  }
+
+  const resendVerification = (username) => request('POST', '/api/verify/resend', { username }).catch(() => {});
+
+  // ---------- creating an account ----------
+
+  // /?signup is the form; /?signup=verified and /?signup=expired are where the emailed link lands.
+  function showSignup(state) {
+    if (!accountsOn || (account && state !== 'verified')) {
+      history.replaceState(null, '', '/');
+      return showLobby();
+    }
+    $('signup').hidden = false;
+    document.title = 'Create an account — Onitama';
+    signupStep(state === 'expired' || (state === 'verified' && account) ? state : 'form');
+    $('signup-google').hidden = $('signup-or').hidden = !googleOn;
+    $('signup-error').textContent = '';
+  }
+
+  function signupStep(step) {
+    $('signup-form').hidden = step !== 'form';
+    for (const name of ['sent', 'verified', 'expired']) $(`signup-${name}`).hidden = step !== name;
+  }
+
+  function bindSignup() {
+    $('signup-signin').addEventListener('click', openSignIn);
+    $('signup-expired-signin').addEventListener('click', openSignIn);
+    $('signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if ($('signup-password').value !== $('signup-password2').value) {
+        $('signup-error').textContent = 'The two passwords are not the same';
+        return;
+      }
+      $('signup-error').textContent = '';
+      $('signup-submit').disabled = true;
+      try {
+        const made = await request('POST', '/api/register', {
+          username: $('signup-username').value,
+          email: $('signup-email').value,
+          password: $('signup-password').value,
+        });
+        if (!made.verify) {
+          location.href = '/'; // no email to confirm on this server: already signed in
+          return;
+        }
+        $('signup-sent-email').textContent = made.email;
+        $('signup-resend-note').textContent = '';
+        $('signup-password').value = $('signup-password2').value = '';
+        signupStep('sent');
+      } catch (err) {
+        $('signup-error').textContent = err.message;
+      } finally {
+        $('signup-submit').disabled = false;
+      }
+    });
+    $('signup-resend').addEventListener('click', async () => {
+      $('signup-resend').disabled = true;
+      await resendVerification($('signup-username').value);
+      $('signup-resend-note').textContent = 'Sent again. It can take a minute to arrive.';
+      setTimeout(() => ($('signup-resend').disabled = false), 60000);
     });
   }
 
@@ -1770,6 +1842,7 @@
     if (query.get('user')) showProfile(query.get('user'));
     else if (query.has('tournaments')) showTournaments();
     else if (query.has('donate')) showDonate();
+    else if (query.has('signup')) showSignup(query.get('signup'));
     else if (query.get('tournament')) showTournament(query.get('tournament'));
     else if (query.get('game')) startStoredAnalysis(query.get('game'));
     else if (query.get('analysis')) startUrlAnalysis(query.get('analysis'));
@@ -1832,6 +1905,7 @@
       try { localStorage.setItem(ME_KEY, JSON.stringify(me)); } catch { /* private mode */ }
     } catch { /* keep what we knew */ }
     bindDialogs();
+    bindSignup();
     bindMenu();
     bindBoardResize();
     fillTimeControls();

@@ -177,6 +177,52 @@
     </section>
   </main>
 
+  <main id="signup" hidden>
+    <section class="box" id="signup-box">
+      <form id="signup-form">
+        <h1>Create an account</h1>
+        <p class="note">An account keeps your rating and match history, and lets you play in tournaments.</p>
+        <a id="signup-google" class="button google" href="/auth/google" hidden>Continue with Google</a>
+        <div class="or" id="signup-or" hidden>or fill in your details</div>
+        <label>Username
+          <input id="signup-username" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_\-]+">
+          <small>3 to 20 letters, digits, _ or -. This is the name other players see.</small>
+        </label>
+        <label>Email
+          <input id="signup-email" type="email" autocomplete="email" required maxlength="254">
+          <small>Never shown to other players. Used to confirm the account and to recover it.</small>
+        </label>
+        <label>Password
+          <input id="signup-password" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+          <small>At least 8 characters.</small>
+        </label>
+        <label>Repeat password
+          <input id="signup-password2" type="password" autocomplete="new-password" required minlength="8" maxlength="200">
+        </label>
+        <p class="error" id="signup-error" role="alert"></p>
+        <button type="submit" class="button good" id="signup-submit">Create account</button>
+        <p class="auth-switch">Already have an account? <button type="button" class="link" id="signup-signin">Sign in</button></p>
+      </form>
+      <div id="signup-sent" hidden>
+        <h1>Check your email</h1>
+        <p>We sent a confirmation link to <strong id="signup-sent-email"></strong>. Open it to finish creating your account; the link works for 24 hours.</p>
+        <p class="note">Nothing there? Look in the spam folder, or send it again.</p>
+        <button type="button" class="button" id="signup-resend">Send the email again</button>
+        <p class="note" id="signup-resend-note" role="status"></p>
+      </div>
+      <div id="signup-verified" hidden>
+        <h1>Email confirmed</h1>
+        <p>Your account is ready and you are signed in.</p>
+        <a class="button good" href="/">Play</a>
+      </div>
+      <div id="signup-expired" hidden>
+        <h1>That link no longer works</h1>
+        <p>Confirmation links work once, for 24 hours. Sign in with your username and password to have a new one sent.</p>
+        <button type="button" class="button" id="signup-expired-signin">Sign in</button>
+      </div>
+    </section>
+  </main>
+
   <main id="donate" hidden>
     <section class="box" id="donate-box">
       <h1>Support Onitama Online</h1>
@@ -311,11 +357,12 @@
         <input id="auth-password" type="password" autocomplete="current-password" required minlength="8" maxlength="200">
       </label>
       <p class="error" id="auth-error" role="alert"></p>
+      <button type="button" class="link" id="auth-resend" hidden>Send the confirmation email again</button>
       <div class="dialog-actions">
-        <button type="submit" class="button" value="login">Sign in</button>
-        <button type="submit" class="button good" value="register">Create account</button>
+        <button type="submit" class="button">Sign in</button>
         <button type="button" class="button flat" data-close>Cancel</button>
       </div>
+      <p class="auth-switch">New here? <a href="/?signup" id="auth-signup">Create an account</a></p>
     </form>
   </dialog>
 

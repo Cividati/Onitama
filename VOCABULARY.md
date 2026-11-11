@@ -57,6 +57,7 @@ The words used in the code, the API and the UI. When a word has a specific name 
 | Term | Meaning |
 | --- | --- |
 | Accounts on / off | Whether the server has a database (`DATABASE_URL`). With accounts off there are no sign-ins, ratings, profiles or tournaments, and the UI hides them. |
+| Verified email | A password account's address once its owner has opened the emailed link (`email_verified_at`). When the server can send mail, an account cannot sign in before that. Google accounts count as verified. |
 | Session | A signed-in browser, identified by the `sid` cookie. |
 | Rating | An Elo number starting at 1500 (`lib/rating.js`). |
 | Provisional | A rating shown with a `?` until the player has ten rated games. |
