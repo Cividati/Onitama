@@ -49,6 +49,7 @@ The words used in the code, the API and the UI. When a word has a specific name 
 | Events, SSE | Server-Sent Events: the one-way stream a browser keeps open to receive snapshots. Actions go the other way as ordinary POST requests. |
 | Presence | Whether each seated player currently has the game open. |
 | Onitama TV | The small board in the lobby showing one live game. |
+| Move time | How long a player took over one ply, measured by the server (`ms` on a history entry). The analysis board lists it beside each move and the clock button hides it. |
 | Analysis board | A replay of a game that encodes all of it in the URL, so it can be shared without an account. |
 
 ## Accounts and ratings

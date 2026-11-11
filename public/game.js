@@ -75,12 +75,14 @@
     };
   }
 
-  // The position after the first `ply` moves of `game`.
+  // The position after the first `ply` moves of `game`. A move's `ms` (how long
+  // it took, set by the server) is carried over.
   function replay(game, ply) {
     const state = fromInitial(game.initial);
     for (const move of game.history.slice(0, ply)) {
       const error = move.from === null ? applyPass(state, move.card) : applyMove(state, move);
       if (error) break;
+      if (move.ms != null) state.last.ms = move.ms;
     }
     return state;
   }

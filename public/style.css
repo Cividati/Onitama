@@ -293,7 +293,7 @@ a.button { display: inline-block; }
   padding: 0 16px;
   display: grid;
   justify-content: center;
-  grid-template-columns: 240px calc(var(--cell) * 5) 320px;
+  grid-template-columns: 240px calc(var(--cell) * 5) var(--moves-width, 320px);
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   grid-template-areas:
     "side board opp-hand"
@@ -516,12 +516,16 @@ button.card:hover { background: var(--panel-hi); }
   padding: 0;
   list-style: none;
   display: grid;
-  grid-template-columns: 34px 1fr 1fr;
+  grid-template-columns: 30px 1fr 1fr;
   align-content: start;
 }
 #moves .n { background: var(--panel-hi); color: var(--dim); text-align: center; padding: 4px 0; border-right: 1px solid var(--line); }
 #moves .mv { cursor: pointer; padding: 4px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
-#moves .mv b { font-weight: 400; color: var(--dim); font-size: 12px; margin-left: auto; }
+#moves .mv b { font-weight: 400; color: var(--dim); font-size: 12px; margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#moves .mv i { font-style: normal; color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; min-width: 26px; text-align: right; }
+#moves .mv i:empty { display: none; }
+#replay #move-times { flex: 0 0 44px; font-size: 15px; padding: 0; border-left: 1px solid var(--line); opacity: 0.45; }
+#replay #move-times[aria-pressed="true"] { opacity: 1; color: var(--strong); }
 #moves .mv:hover { background: var(--panel-hi); }
 #moves .mv.current { background: #293a49; color: #fff; }
 
@@ -656,6 +660,10 @@ button.card:hover { background: var(--panel-hi); }
 #game.analysis .info-meta,
 #game.analysis .player .dot,
 #game.analysis #controls { display: none; }
+/* Reading the moves is the point of the analysis board, so the list gets more room there. */
+#game.analysis #moves-scroll { min-height: 260px; }
+/* Wider too, for the move times; maxCell() in the client allows for it. */
+#game.analysis { --moves-width: 370px; }
 
 /* ---------- accounts ---------- */
 

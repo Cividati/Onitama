@@ -8,6 +8,9 @@
   let room = (params.get('room') || '').toUpperCase();
   const watching = params.has('watch'); // spectate without taking a seat
   let analysis = false; // showing a finished game instead of a live room
+  const TIMES_KEY = 'onitama:move-times';
+  let showTimes = true; // the analysis board lists how long each move took
+  try { showTimes = localStorage.getItem(TIMES_KEY) !== 'off'; } catch { /* private mode */ }
 
   const NAME = { red: 'Red', blue: 'Blue' };
   // Piece shapes, drawn in a 40×40 box and filled with the owner's colour.
@@ -1047,13 +1050,13 @@
 
   function analysisHref(g) {
     if (snap.result && snap.result.gameId) return `/?game=${snap.result.gameId}`;
-    const data = { i: g.initial, h: g.history.map((m) => [m.card, m.from, m.to]), w: g.winner, r: g.winReason };
+    const data = { i: g.initial, h: g.history.map((m) => [m.card, m.from, m.to, m.ms]), w: g.winner, r: g.winReason };
     const encoded = btoa(JSON.stringify(data)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return `/?analysis=${encoded}`;
   }
 
   function rebuildGame(initial, moves, winner, reason) {
-    const history = moves.map(([card, from, to]) => ({ card, from, to }));
+    const history = moves.map(([card, from, to, ms]) => ({ card, from, to, ms }));
     const game = Onitama.replay({ initial, history }, history.length);
     if (game.history.length !== history.length) throw new Error('bad moves');
     if (!game.winner) {
@@ -1291,9 +1294,14 @@
   }
 
   function bindReplay() {
-    for (const button of document.querySelectorAll('#replay button')) {
+    for (const button of document.querySelectorAll('#replay button[data-go]')) {
       button.addEventListener('click', () => step(button.dataset.go));
     }
+    $('move-times').addEventListener('click', () => {
+      showTimes = !showTimes;
+      try { localStorage.setItem(TIMES_KEY, showTimes ? 'on' : 'off'); } catch { /* private mode */ }
+      renderMoves();
+    });
     document.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement || e.ctrlKey || e.metaKey || e.altKey) return;
       if (document.querySelector('dialog[open]')) return;
@@ -1450,9 +1458,20 @@
     $('watchers').textContent = n ? `${n} spectator${n === 1 ? '' : 's'}` : '';
   }
 
+  // How long a move took: "0.8s", "12s", "1:05".
+  function moveTime(ms) {
+    if (ms < 10000) return `${(ms / 1000).toFixed(1)}s`;
+    const seconds = Math.round(ms / 1000);
+    return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  }
+
   function renderMoves() {
     const g = snap.game;
     const current = isLive() ? g.history.length : viewPly;
+    // Move times belong to the analysis board, and only games played since they were recorded have them.
+    const timed = analysis && g.history.some((move) => move.ms != null);
+    $('move-times').hidden = !timed;
+    $('move-times').setAttribute('aria-pressed', String(showTimes));
     const items = [];
     g.history.forEach((move, i) => {
       if (i % 2 === 0) {
@@ -1464,9 +1483,10 @@
       const li = document.createElement('li');
       li.className = `mv${i + 1 === current ? ' current' : ''}`;
       const text = move.from === null ? 'pass' : `${square(move.from)}${move.captured ? 'x' : '-'}${square(move.to)}`;
-      li.innerHTML = `<span class="swatch ${move.color}"></span><span></span><b></b>`;
+      li.innerHTML = `<span class="swatch ${move.color}"></span><span></span><b></b><i></i>`;
       li.children[1].textContent = text;
       li.children[2].textContent = move.card;
+      li.children[3].textContent = timed && showTimes && move.ms != null ? moveTime(move.ms) : '';
       li.addEventListener('click', () => goTo(i + 1));
       items.push(li);
     });
@@ -1478,7 +1498,7 @@
       if (active) list.scrollTop = active.offsetTop - list.clientHeight / 2;
       else list.scrollTop = 0;
     }
-    const buttons = document.querySelectorAll('#replay button');
+    const buttons = document.querySelectorAll('#replay button[data-go]');
     buttons[0].disabled = buttons[1].disabled = current === 0;
     buttons[2].disabled = buttons[3].disabled = current === g.history.length;
   }
@@ -1550,7 +1570,8 @@
       const fit = sideways ? Math.min((height - 54) / 5, (width - 290) / 5) : Math.min((width - 16) / 5, (height - 318) / 5);
       return Math.floor(Math.max(40, Math.min(96, fit)));
     }
-    return Math.floor((width - 624) / 5); // side columns 240 + 320, gaps 32, padding 32
+    // Side columns 240 + 320 (370 on the analysis board), gaps 32, padding 32.
+    return Math.floor((width - (analysis ? 674 : 624)) / 5);
   }
 
   function applyBoardSize(wanted) {

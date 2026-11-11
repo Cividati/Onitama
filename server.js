@@ -88,6 +88,8 @@ function createRoom(tc, cards) {
     chat: [],
     offers: { draw: null, takeback: null }, // colour that made the offer
     touched: Date.now(),
+    startedAt: null, // when the first move was made
+    turnAt: null, // when the player to move started thinking
   };
   room.clock = newClock(room.tc);
   rooms.set(code, room);
@@ -185,7 +187,7 @@ function recordGame(room) {
       winner: game.winner,
       reason: game.winReason,
       initial: game.initial,
-      moves: game.history.map((m) => [m.card, m.from, m.to]),
+      moves: game.history.map((m) => [m.card, m.from, m.to, m.ms]),
       seconds: room.startedAt ? Math.round((Date.now() - room.startedAt) / 1000) : null,
     })
     .then((saved) => {
@@ -356,6 +358,7 @@ function startPairedGame(tc, userA, userB, tournament) {
   room.rated = accounts.enabled && !!userA && !!userB; // rated when both are signed in
   room.tournament = tournament;
   if (tournament) say(room, 'system', `Tournament game: make your first move within ${FIRST_MOVE_MS / 1000} seconds`);
+  room.turnAt = Date.now();
   startClock(room);
   return { code, tokens: [room.tokens[first], room.tokens[second]] };
 }
@@ -389,10 +392,13 @@ function scheduleBot(room) {
 
 // Clock and offers once `color` has moved or passed.
 function afterMove(room, color) {
-  // Moving implicitly turns down any pending offer.
-  finish(room, null);
   // Time played is counted from the first move, not from the room being opened.
-  if (!room.startedAt) room.startedAt = Date.now();
+  const now = Date.now();
+  if (!room.startedAt) room.startedAt = now;
+  room.game.history[room.game.history.length - 1].ms = now - (room.turnAt || now);
+  room.turnAt = now;
+  // Moving implicitly turns down any pending offer; a winning move is stored here.
+  finish(room, null);
   if (room.clock) room.clock.remaining[color] += room.clock.increment;
   if (!room.game.winner) startClock(room);
 }
@@ -424,6 +430,7 @@ function handleOffer(room, color, kind, answer) {
       say(room, 'system', 'Draw agreed');
     } else {
       room.game = Onitama.replay(room.game, takebackPly(room.game, other(color)));
+      room.turnAt = Date.now();
       finish(room, null);
       if (room.game.history.length || room.quick) startClock(room);
       say(room, 'system', 'Takeback accepted');
@@ -508,6 +515,7 @@ async function handleApi(req, res, url) {
       token = newToken();
       room.tokens[color] = token;
       room.users[color] = await accounts.userFromRequest(req);
+      if (room.tokens.red && room.tokens.blue) room.turnAt = Date.now();
       broadcast(room);
     }
     return json(res, 200, { color, token });
@@ -533,6 +541,7 @@ async function handleApi(req, res, url) {
     finish(room, null);
     room.game = Onitama.newGame(null, room.cards);
     room.startedAt = null;
+    room.turnAt = Date.now();
     room.result = null;
     room.clock = newClock(room.tc);
     if (room.quick) startClock(room);
