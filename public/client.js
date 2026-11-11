@@ -63,7 +63,7 @@
   const profileHref = (name) => `/?user=${encodeURIComponent(name)}`;
 
   // ---------- sound ----------
-  // One two-note chime, used when a game starts and when it ends.
+  // A two-note chime when a game starts and when it ends, and a wooden knock for every move.
 
   let audio = null;
   function audioContext() {
@@ -76,13 +76,19 @@
   // Browsers only allow sound after the user has interacted with the page.
   document.addEventListener('pointerdown', () => { const ctx = audioContext(); if (ctx) ctx.resume(); }, { once: true });
 
-  function chime() {
+  // Runs `play(ctx, start)` once the browser lets the page make sound.
+  function withAudio(play) {
     const ctx = audioContext();
     if (!ctx) return;
     const asked = performance.now();
     ctx.resume().then(() => {
       if (performance.now() - asked > 500) return; // unlocked too late to be meaningful
-      const start = ctx.currentTime + 0.02;
+      play(ctx, ctx.currentTime + 0.02);
+    }).catch(() => {});
+  }
+
+  function chime() {
+    withAudio((ctx, start) => {
       [[659.25, 0], [987.77, 0.14]].forEach(([frequency, delay]) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -95,7 +101,46 @@
         osc.start(start + delay);
         osc.stop(start + delay + 0.75);
       });
-    }).catch(() => {});
+    });
+  }
+
+  // A piece set down on a wooden board: a short click (filtered noise) over a
+  // low thump that drops in pitch. `pitch` scales both; 1 is the normal move.
+  function knock(ctx, start, pitch, volume) {
+    const length = Math.floor(ctx.sampleRate * 0.06);
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < length; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3;
+    const click = ctx.createBufferSource();
+    click.buffer = buffer;
+    const wood = ctx.createBiquadFilter();
+    wood.type = 'bandpass';
+    wood.frequency.value = 1500 * pitch;
+    wood.Q.value = 1.2;
+    const clickGain = ctx.createGain();
+    clickGain.gain.value = 0.9 * volume;
+    click.connect(wood).connect(clickGain).connect(ctx.destination);
+    click.start(start);
+
+    const thump = ctx.createOscillator();
+    const thumpGain = ctx.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(220 * pitch, start);
+    thump.frequency.exponentialRampToValueAtTime(90 * pitch, start + 0.07);
+    thumpGain.gain.setValueAtTime(0.0001, start);
+    thumpGain.gain.exponentialRampToValueAtTime(0.5 * volume, start + 0.004);
+    thumpGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+    thump.connect(thumpGain).connect(ctx.destination);
+    thump.start(start);
+    thump.stop(start + 0.12);
+  }
+
+  // A capture sounds like two pieces: the taken one knocked aside, then the taker landing.
+  function moveSound(captured) {
+    withAudio((ctx, start) => {
+      if (captured) knock(ctx, start, 1.35, 0.7);
+      knock(ctx, start + (captured ? 0.07 : 0), 1, 1);
+    });
   }
 
   // ---------- account bar and sign-in dialog ----------
@@ -647,6 +692,10 @@
       const previous = snap;
       snap = JSON.parse(e.data);
       snapAt = performance.now();
+      // A move was played (not a takeback or a rematch, which lower the count).
+      if (previous && snap.game.moveCount > previous.game.moveCount && snap.game.last.from !== null) {
+        moveSound(snap.game.last.captured);
+      }
       if (snap.game.moveCount !== seenMove) {
         seenMove = snap.game.moveCount;
         sel = { card: null, from: null };
