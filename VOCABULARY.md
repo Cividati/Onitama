@@ -61,6 +61,7 @@ The words used in the code, the API and the UI. When a word has a specific name 
 | Provisional | A rating shown with a `?` until the player has ten rated games. |
 | Rated game | A game that changes ratings: quick-pairing games between two signed-in players, and tournament games. |
 | Match history | The finished games of a signed-in player, kept in the database and replayable from their profile. |
+| Time played | The total length of a player's stored games, shown on their profile. A game is timed from its first move to its end (`games.seconds`). |
 | Leaderboard | The highest-rated players, shown in the lobby. |
 
 ## Tournaments

@@ -744,6 +744,12 @@
 
   // ---------- profile and match history ----------
 
+  // "3h 20m", or just minutes under an hour.
+  function playedText(seconds) {
+    const minutes = Math.round((seconds || 0) / 60);
+    return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  }
+
   async function showProfile(name) {
     const mine = visit;
     let data;
@@ -764,7 +770,7 @@
     $('profile-stats').textContent =
       `${user.games} rated game${user.games === 1 ? '' : 's'} • ${user.wins} wins • ${user.losses} losses • ` +
       `${user.draws} draws • ${user.tournamentPoints} tournament point${user.tournamentPoints === 1 ? '' : 's'} • ` +
-      `member since ${since}`;
+      `${playedText(user.secondsPlayed)} played • member since ${since}`;
     $('profile-tournaments').hidden = data.tournaments.length === 0;
     $('profile-tournament-list').replaceChildren(
       ...data.tournaments.map((t) => {

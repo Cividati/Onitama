@@ -186,6 +186,7 @@ function recordGame(room) {
       reason: game.winReason,
       initial: game.initial,
       moves: game.history.map((m) => [m.card, m.from, m.to]),
+      seconds: room.startedAt ? Math.round((Date.now() - room.startedAt) / 1000) : null,
     })
     .then((saved) => {
       for (const color of ['red', 'blue']) {
@@ -390,6 +391,8 @@ function scheduleBot(room) {
 function afterMove(room, color) {
   // Moving implicitly turns down any pending offer.
   finish(room, null);
+  // Time played is counted from the first move, not from the room being opened.
+  if (!room.startedAt) room.startedAt = Date.now();
   if (room.clock) room.clock.remaining[color] += room.clock.increment;
   if (!room.game.winner) startClock(room);
 }
@@ -529,6 +532,7 @@ async function handleApi(req, res, url) {
     if (room.tournament) return json(res, 409, { error: 'Tournament games have no rematch' });
     finish(room, null);
     room.game = Onitama.newGame(null, room.cards);
+    room.startedAt = null;
     room.result = null;
     room.clock = newClock(room.tc);
     if (room.quick) startClock(room);
