@@ -10,7 +10,7 @@ Play [Onitama](https://en.wikipedia.org/wiki/Onitama) in the browser, with a lic
 - **Replay**: step through the moves with the buttons under the clock, the arrow keys, or by clicking the move list. A finished game has an "Analysis board" link that encodes the whole game in the URL.
 - **Spectate** any running game from the lobby's live list.
 - **Accounts** (optional): sign up with a username and password or with Google. Quick-pairing games between two signed-in players are rated (Elo, starting at 1500); every finished game of a signed-in player is kept in their match history and can be replayed.
-- **Sound**: every move, capture and game start/end makes a sound. The Sound menu offers several themes (or none) and a volume slider; the choice is kept in the browser.
+- **Sound**: every move, capture and game start/end makes a sound. In the Options menu the player picks the sound of the pieces and the sound for a game starting or ending separately (several themes, or none), and sets the volume; the choice is kept in the browser.
 
 ## Run
 

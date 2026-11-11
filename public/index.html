@@ -11,7 +11,7 @@
   <header id="top">
     <a href="/" class="brand">onitama</a>
     <nav><a href="/">Play</a><a href="/?tournaments" id="nav-tournaments" hidden>Tournaments</a></nav>
-    <button id="sound-button" class="link">Sound</button>
+    <button id="options-button" class="link">Options</button>
     <div id="account" hidden>
       <button id="signin" class="link" hidden>Sign in</button>
       <a id="me-link" hidden></a>
@@ -237,12 +237,24 @@
     </form>
   </dialog>
 
-  <dialog id="sound-dialog">
+  <dialog id="options-dialog">
     <form>
-      <h2>Sound</h2>
-      <div id="sound-themes"></div>
+      <h2>Options</h2>
+      <label>Sound of the pieces
+        <span class="option-row">
+          <select id="option-move-sound"></select>
+          <button type="button" class="button flat" data-play="move">▶ Move</button>
+          <button type="button" class="button flat" data-play="capture">▶ Capture</button>
+        </span>
+      </label>
+      <label>Sound when a game starts or ends
+        <span class="option-row">
+          <select id="option-alert-sound"></select>
+          <button type="button" class="button flat" data-play="alert">▶ Play</button>
+        </span>
+      </label>
       <label>Volume
-        <input id="sound-volume" type="range" min="0" max="100">
+        <input id="option-volume" type="range" min="0" max="100">
       </label>
       <div class="dialog-actions">
         <button type="button" class="button" data-close>Done</button>

@@ -63,14 +63,17 @@
   const profileHref = (name) => `/?user=${encodeURIComponent(name)}`;
 
   // ---------- sound ----------
-  // Every sound is synthesized. A theme decides how a move, a capture and the
-  // alert (game found, game over) sound; the player picks one in the Sound dialog.
+  // Every sound is synthesized. A theme has a move, a capture and an alert (game
+  // started, game over) sound; in the options menu the player picks one theme
+  // for the pieces and one for the alert.
 
   const SOUND_KEY = 'onitama:sound';
-  let sound = { theme: 'wood', volume: 0.6 };
+  const sound = { move: 'wood', alert: 'wood', volume: 0.6 };
   try {
-    const saved = JSON.parse(localStorage.getItem(SOUND_KEY));
-    if (saved && typeof saved.theme === 'string' && typeof saved.volume === 'number') sound = saved;
+    const saved = JSON.parse(localStorage.getItem(SOUND_KEY)) || {};
+    if (saved.theme) saved.move = saved.alert = saved.theme; // from when one theme covered everything
+    for (const key of ['move', 'alert']) if (typeof saved[key] === 'string') sound[key] = saved[key];
+    if (typeof saved.volume === 'number') sound.volume = saved.volume;
   } catch { /* keep the defaults */ }
 
   let audio = null; // { ctx, out } once the first sound is asked for
@@ -150,9 +153,10 @@
     off: { label: 'No sound' },
   };
 
-  // Plays 'move', 'capture' or 'alert' in the chosen theme (or in `theme`, for previews).
+  // Plays 'move', 'capture' or 'alert' in the theme chosen for it (or in `theme`, for previews).
   function playSound(kind, theme) {
-    const play = (SOUND_THEMES[theme || sound.theme] || SOUND_THEMES.wood)[kind];
+    const chosen = theme || (kind === 'alert' ? sound.alert : sound.move);
+    const play = (SOUND_THEMES[chosen] || SOUND_THEMES.wood)[kind];
     const a = play && audioOutput();
     if (!a) return;
     const asked = performance.now();
@@ -162,45 +166,34 @@
     }).catch(() => {});
   }
 
-  function bindSoundDialog() {
+  // ---------- options menu ----------
+
+  function bindOptions() {
     const save = () => {
       try { localStorage.setItem(SOUND_KEY, JSON.stringify(sound)); } catch { /* private mode */ }
     };
-    $('sound-themes').replaceChildren(
-      ...Object.entries(SOUND_THEMES).map(([key, theme]) => {
-        const row = document.createElement('div');
-        row.className = 'sound-row';
-        row.innerHTML = '<label class="inline"><input type="radio" name="sound-theme"><span></span></label>';
-        const radio = row.querySelector('input');
-        radio.value = key;
-        radio.checked = key === sound.theme;
-        row.querySelector('span').textContent = theme.label;
-        radio.addEventListener('change', () => {
-          sound.theme = key;
-          save();
-          playSound('move');
-        });
-        // Listen to a theme without choosing it.
-        for (const [kind, label] of [['move', 'Move'], ['capture', 'Capture'], ['alert', 'Alert']]) {
-          if (!theme[kind]) continue;
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = 'button flat';
-          button.textContent = `▶ ${label}`;
-          button.addEventListener('click', () => playSound(kind, key));
-          row.append(button);
-        }
-        return row;
-      })
-    );
-    const volume = $('sound-volume');
+    // One list of themes per kind of sound; choosing one plays it.
+    for (const [setting, id, preview] of [['move', 'option-move-sound', 'move'], ['alert', 'option-alert-sound', 'alert']]) {
+      const select = $(id);
+      for (const [key, theme] of Object.entries(SOUND_THEMES)) select.add(new Option(theme.label, key));
+      select.value = sound[setting];
+      select.addEventListener('change', () => {
+        sound[setting] = select.value;
+        save();
+        playSound(preview);
+      });
+    }
+    for (const button of document.querySelectorAll('#options-dialog [data-play]')) {
+      button.addEventListener('click', () => playSound(button.dataset.play));
+    }
+    const volume = $('option-volume');
     volume.value = Math.round(sound.volume * 100);
     volume.addEventListener('input', () => {
       sound.volume = Number(volume.value) / 100;
       save();
     });
     volume.addEventListener('change', () => playSound('move'));
-    $('sound-button').addEventListener('click', () => $('sound-dialog').showModal());
+    $('options-button').addEventListener('click', () => $('options-dialog').showModal());
   }
 
   // ---------- account bar and sign-in dialog ----------
@@ -1360,7 +1353,7 @@
     } catch { /* accounts stay off */ }
     renderAccount();
     bindDialogs();
-    bindSoundDialog();
+    bindOptions();
     bindBoardResize();
     $('nav-tournaments').hidden = !accountsOn;
 
