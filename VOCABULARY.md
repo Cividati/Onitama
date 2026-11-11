@@ -42,9 +42,9 @@ The words used in the code, the API and the UI. When a word has a specific name 
 | Seek, seeker | A player waiting in a quick-pairing pool (`seekers`, `/api/seek`). |
 | Friend game | A game created with "Play with a friend", joined through its invite link. Never rated. |
 | Bot | The computer opponent (`lib/bot.js`), at level easy, medium or hard. Bot games are never rated. |
-| Offer | A request the opponent must answer: a draw, a takeback or a rematch. |
+| Offer | A request the opponent must answer: a draw or a takeback. |
 | Takeback | Undoing your last move with the opponent's agreement. |
-| Rematch | A new game between the same players with the colours swapped. |
+| Rematch | A new game in the same room after one has ended, with a fresh deal and the same seats. Either player can start it; tournament games have none. |
 | Snapshot | The full state of a room or tournament as sent to one viewer (`snapshot`). Clients never receive partial updates. |
 | Events, SSE | Server-Sent Events: the one-way stream a browser keeps open to receive snapshots. Actions go the other way as ordinary POST requests. |
 | Presence | Whether each seated player currently has the game open. |
