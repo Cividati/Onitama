@@ -491,7 +491,8 @@ button.card:hover { background: var(--panel-hi); }
 
 /* ---------- accounts ---------- */
 
-#account { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+#sound-button { margin-left: auto; }
+#account { display: flex; align-items: center; gap: 16px; }
 .link { background: none; border: 0; padding: 0; color: var(--link); text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
 .link:hover { color: var(--strong); }
 #me-link { color: var(--strong); display: flex; gap: 8px; align-items: baseline; }
@@ -515,7 +516,7 @@ dialog form { padding: 22px 24px; display: flex; flex-direction: column; gap: 14
 dialog h2 { font-size: 22px; text-align: center; }
 dialog label { display: flex; flex-direction: column; gap: 5px; color: var(--dim); }
 dialog label.inline { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
-dialog input:not([type="radio"]),
+dialog input:not([type="radio"]):not([type="range"]),
 dialog select {
   background: var(--bg);
   color: var(--strong);
@@ -531,6 +532,11 @@ dialog .error { margin: 0; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .button.google { background: #fff; color: #1f1f1f; text-align: center; padding: 11px; text-transform: none; font-size: 14px; }
 .or { text-align: center; color: var(--dim); font-size: 12.5px; }
+
+.sound-row { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.sound-row label { flex: 1; cursor: pointer; }
+.sound-row .button { padding: 6px 8px; }
+#sound-volume { accent-color: var(--green); }
 
 #card-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 #card-picker .card { background: var(--panel-hi); padding: 8px 4px 6px; }
@@ -592,8 +598,8 @@ td.diff { font-weight: 600; }
 .table-box td a { color: inherit; }
 .table-box td a:hover { color: var(--link); }
 .table-box .empty { padding: 28px 16px; margin: 0; color: var(--dim); text-align: center; }
-#tournaments-list tr { cursor: pointer; }
-#tournaments-list tr:hover { background: color-mix(in srgb, var(--brand) 22%, var(--panel)); color: #fff; }
+#tournaments-list tr, #profile-tournament-list tr { cursor: pointer; }
+#tournaments-list tr:hover, #profile-tournament-list tr:hover { background: color-mix(in srgb, var(--brand) 22%, var(--panel)); color: #fff; }
 td.status.running { color: #7eb82f; font-weight: 600; }
 td.status.finished { color: var(--dim); }
 
@@ -601,10 +607,11 @@ td.status.finished { color: var(--dim); }
 #tournament-meta { margin: 4px 0 0; color: var(--dim); }
 #tournament-clock { font-size: 22px; color: var(--brand); margin-top: 10px; font-variant-numeric: tabular-nums; }
 #tournament-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 14px; min-height: 34px; }
+#tournament-delete { margin-left: auto; }
 #tournament-note.waiting { animation: pulse 1.4s ease-in-out infinite; }
 #tournament-standings tr.me { background: color-mix(in srgb, var(--link) 14%, var(--panel)); }
 #tournament-standings tr.withdrawn { opacity: 0.5; }
-#tournament-standings td.score { font-weight: 700; color: var(--strong); font-size: 15px; }
+#tournament-standings td.score, #profile-tournament-list td.score { font-weight: 700; color: var(--strong); font-size: 15px; }
 #tournament-standings td.rank { color: var(--dim); width: 1%; }
 #tournament-standings .rating { color: var(--dim); font-size: 13px; margin-left: 6px; }
 #tournament-standings td.watch { text-align: right; }

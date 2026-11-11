@@ -11,6 +11,7 @@
   <header id="top">
     <a href="/" class="brand">onitama</a>
     <nav><a href="/">Play</a><a href="/?tournaments" id="nav-tournaments" hidden>Tournaments</a></nav>
+    <button id="sound-button" class="link">Sound</button>
     <div id="account" hidden>
       <button id="signin" class="link" hidden>Sign in</button>
       <a id="me-link" hidden></a>
@@ -65,6 +66,15 @@
       <div id="profile-rating"></div>
       <p id="profile-stats"></p>
     </section>
+    <section class="box table-box" id="profile-tournaments" hidden>
+      <h2>Tournaments</h2>
+      <table>
+        <thead>
+          <tr><th>Tournament</th><th>Place</th><th>Games</th><th>W / D / L</th><th>Points</th><th>Date</th></tr>
+        </thead>
+        <tbody id="profile-tournament-list"></tbody>
+      </table>
+    </section>
     <section class="box" id="profile-games">
       <h2>Games</h2>
       <table>
@@ -102,6 +112,7 @@
       <div id="tournament-actions">
         <button id="tournament-join" class="button good" hidden>Join</button>
         <button id="tournament-withdraw" class="button flat" hidden>Withdraw</button>
+        <button id="tournament-delete" class="button flat" hidden>Delete tournament</button>
         <span id="tournament-note" role="status"></span>
       </div>
       <p class="error" id="tournament-error" role="alert"></p>
@@ -222,6 +233,19 @@
       <div class="dialog-actions">
         <button type="submit" class="button good" id="friend-create">Create game</button>
         <button type="button" class="button flat" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="sound-dialog">
+    <form>
+      <h2>Sound</h2>
+      <div id="sound-themes"></div>
+      <label>Volume
+        <input id="sound-volume" type="range" min="0" max="100">
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="button" data-close>Done</button>
       </div>
     </form>
   </dialog>

@@ -63,84 +63,144 @@
   const profileHref = (name) => `/?user=${encodeURIComponent(name)}`;
 
   // ---------- sound ----------
-  // A two-note chime when a game starts and when it ends, and a wooden knock for every move.
+  // Every sound is synthesized. A theme decides how a move, a capture and the
+  // alert (game found, game over) sound; the player picks one in the Sound dialog.
 
-  let audio = null;
-  function audioContext() {
+  const SOUND_KEY = 'onitama:sound';
+  let sound = { theme: 'wood', volume: 0.6 };
+  try {
+    const saved = JSON.parse(localStorage.getItem(SOUND_KEY));
+    if (saved && typeof saved.theme === 'string' && typeof saved.volume === 'number') sound = saved;
+  } catch { /* keep the defaults */ }
+
+  let audio = null; // { ctx, out } once the first sound is asked for
+  function audioOutput() {
     if (!audio) {
       const Ctor = window.AudioContext || window.webkitAudioContext;
-      if (Ctor) audio = new Ctor();
+      if (!Ctor) return null;
+      const ctx = new Ctor();
+      const out = ctx.createGain(); // master volume
+      out.connect(ctx.destination);
+      audio = { ctx, out };
     }
+    audio.out.gain.value = sound.volume;
     return audio;
   }
   // Browsers only allow sound after the user has interacted with the page.
-  document.addEventListener('pointerdown', () => { const ctx = audioContext(); if (ctx) ctx.resume(); }, { once: true });
+  document.addEventListener('pointerdown', () => { const a = audioOutput(); if (a) a.ctx.resume(); }, { once: true });
 
-  // Runs `play(ctx, start)` once the browser lets the page make sound.
-  function withAudio(play) {
-    const ctx = audioContext();
-    if (!ctx) return;
+  // A note that fades out: `freq` Hz (gliding to `to` if given), `gain` loud, gone after `decay` seconds.
+  function tone(a, at, { freq, to, gain, decay, type }) {
+    const osc = a.ctx.createOscillator();
+    const env = a.ctx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, at);
+    if (to) osc.frequency.exponentialRampToValueAtTime(to, at + decay);
+    env.gain.setValueAtTime(0.0001, at);
+    env.gain.exponentialRampToValueAtTime(gain, at + 0.004);
+    env.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+    osc.connect(env).connect(a.out);
+    osc.start(at);
+    osc.stop(at + decay + 0.02);
+  }
+
+  // A burst of noise around `freq` Hz lasting `length` seconds: the "tick" of something hard.
+  function tick(a, at, { freq, q, gain, length }) {
+    const count = Math.floor(a.ctx.sampleRate * length);
+    const buffer = a.ctx.createBuffer(1, count, a.ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < count; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / count) ** 2;
+    const source = a.ctx.createBufferSource();
+    source.buffer = buffer;
+    const filter = a.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = freq;
+    filter.Q.value = q;
+    const env = a.ctx.createGain();
+    env.gain.value = gain;
+    source.connect(filter).connect(env).connect(a.out);
+    source.start(at);
+  }
+
+  const SOUND_THEMES = {
+    wood: {
+      label: 'Soft wood',
+      move: (a, t) => { tick(a, t, { freq: 2300, q: 2.5, gain: 0.5, length: 0.03 }); tone(a, t, { freq: 480, to: 330, gain: 0.1, decay: 0.05 }); },
+      capture: (a, t) => { SOUND_THEMES.wood.move(a, t); tick(a, t + 0.06, { freq: 1700, q: 2.5, gain: 0.55, length: 0.035 }); },
+      alert: (a, t) => { tone(a, t, { freq: 587.33, gain: 0.12, decay: 0.3, type: 'triangle' }); tone(a, t + 0.11, { freq: 880, gain: 0.12, decay: 0.4, type: 'triangle' }); },
+    },
+    click: {
+      label: 'Click',
+      move: (a, t) => tick(a, t, { freq: 4200, q: 1, gain: 0.35, length: 0.012 }),
+      capture: (a, t) => { tick(a, t, { freq: 4200, q: 1, gain: 0.35, length: 0.012 }); tick(a, t + 0.05, { freq: 3200, q: 1, gain: 0.4, length: 0.015 }); },
+      alert: (a, t) => tone(a, t, { freq: 880, gain: 0.1, decay: 0.22 }),
+    },
+    marimba: {
+      label: 'Marimba',
+      move: (a, t) => { tone(a, t, { freq: 523.25, gain: 0.16, decay: 0.16 }); tone(a, t, { freq: 2093, gain: 0.03, decay: 0.05 }); },
+      capture: (a, t) => { tone(a, t, { freq: 392, gain: 0.16, decay: 0.16 }); tone(a, t + 0.07, { freq: 523.25, gain: 0.16, decay: 0.18 }); },
+      alert: (a, t) => { [523.25, 659.25, 783.99].forEach((freq, i) => tone(a, t + i * 0.09, { freq, gain: 0.14, decay: 0.3 })); },
+    },
+    glass: {
+      label: 'Glass',
+      move: (a, t) => { tone(a, t, { freq: 1318.5, gain: 0.07, decay: 0.2 }); tone(a, t, { freq: 2637, gain: 0.02, decay: 0.12 }); },
+      capture: (a, t) => { tone(a, t, { freq: 1318.5, gain: 0.07, decay: 0.2 }); tone(a, t + 0.06, { freq: 1760, gain: 0.07, decay: 0.25 }); },
+      alert: (a, t) => { tone(a, t, { freq: 1046.5, gain: 0.08, decay: 0.45 }); tone(a, t + 0.13, { freq: 1568, gain: 0.08, decay: 0.6 }); },
+    },
+    off: { label: 'No sound' },
+  };
+
+  // Plays 'move', 'capture' or 'alert' in the chosen theme (or in `theme`, for previews).
+  function playSound(kind, theme) {
+    const play = (SOUND_THEMES[theme || sound.theme] || SOUND_THEMES.wood)[kind];
+    const a = play && audioOutput();
+    if (!a) return;
     const asked = performance.now();
-    ctx.resume().then(() => {
+    a.ctx.resume().then(() => {
       if (performance.now() - asked > 500) return; // unlocked too late to be meaningful
-      play(ctx, ctx.currentTime + 0.02);
+      play(a, a.ctx.currentTime + 0.02);
     }).catch(() => {});
   }
 
-  function chime() {
-    withAudio((ctx, start) => {
-      [[659.25, 0], [987.77, 0.14]].forEach(([frequency, delay]) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = frequency;
-        gain.gain.setValueAtTime(0.0001, start + delay);
-        gain.gain.exponentialRampToValueAtTime(0.25, start + delay + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + delay + 0.7);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(start + delay);
-        osc.stop(start + delay + 0.75);
-      });
+  function bindSoundDialog() {
+    const save = () => {
+      try { localStorage.setItem(SOUND_KEY, JSON.stringify(sound)); } catch { /* private mode */ }
+    };
+    $('sound-themes').replaceChildren(
+      ...Object.entries(SOUND_THEMES).map(([key, theme]) => {
+        const row = document.createElement('div');
+        row.className = 'sound-row';
+        row.innerHTML = '<label class="inline"><input type="radio" name="sound-theme"><span></span></label>';
+        const radio = row.querySelector('input');
+        radio.value = key;
+        radio.checked = key === sound.theme;
+        row.querySelector('span').textContent = theme.label;
+        radio.addEventListener('change', () => {
+          sound.theme = key;
+          save();
+          playSound('move');
+        });
+        // Listen to a theme without choosing it.
+        for (const [kind, label] of [['move', 'Move'], ['capture', 'Capture'], ['alert', 'Alert']]) {
+          if (!theme[kind]) continue;
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'button flat';
+          button.textContent = `▶ ${label}`;
+          button.addEventListener('click', () => playSound(kind, key));
+          row.append(button);
+        }
+        return row;
+      })
+    );
+    const volume = $('sound-volume');
+    volume.value = Math.round(sound.volume * 100);
+    volume.addEventListener('input', () => {
+      sound.volume = Number(volume.value) / 100;
+      save();
     });
-  }
-
-  // A piece set down on a wooden board: a short click (filtered noise) over a
-  // low thump that drops in pitch. `pitch` scales both; 1 is the normal move.
-  function knock(ctx, start, pitch, volume) {
-    const length = Math.floor(ctx.sampleRate * 0.06);
-    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let i = 0; i < length; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 3;
-    const click = ctx.createBufferSource();
-    click.buffer = buffer;
-    const wood = ctx.createBiquadFilter();
-    wood.type = 'bandpass';
-    wood.frequency.value = 1500 * pitch;
-    wood.Q.value = 1.2;
-    const clickGain = ctx.createGain();
-    clickGain.gain.value = 0.9 * volume;
-    click.connect(wood).connect(clickGain).connect(ctx.destination);
-    click.start(start);
-
-    const thump = ctx.createOscillator();
-    const thumpGain = ctx.createGain();
-    thump.type = 'sine';
-    thump.frequency.setValueAtTime(220 * pitch, start);
-    thump.frequency.exponentialRampToValueAtTime(90 * pitch, start + 0.07);
-    thumpGain.gain.setValueAtTime(0.0001, start);
-    thumpGain.gain.exponentialRampToValueAtTime(0.5 * volume, start + 0.004);
-    thumpGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
-    thump.connect(thumpGain).connect(ctx.destination);
-    thump.start(start);
-    thump.stop(start + 0.12);
-  }
-
-  // A capture sounds like two pieces: the taken one knocked aside, then the taker landing.
-  function moveSound(captured) {
-    withAudio((ctx, start) => {
-      if (captured) knock(ctx, start, 1.35, 0.7);
-      knock(ctx, start + (captured ? 0.07 : 0), 1, 1);
-    });
+    volume.addEventListener('change', () => playSound('move'));
+    $('sound-button').addEventListener('click', () => $('sound-dialog').showModal());
   }
 
   // ---------- account bar and sign-in dialog ----------
@@ -363,7 +423,26 @@
     const since = new Date(user.since).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
     $('profile-stats').textContent =
       `${user.games} rated game${user.games === 1 ? '' : 's'} • ${user.wins} wins • ${user.losses} losses • ` +
-      `${user.draws} draws • member since ${since}`;
+      `${user.draws} draws • ${user.tournamentPoints} tournament point${user.tournamentPoints === 1 ? '' : 's'} • ` +
+      `member since ${since}`;
+    $('profile-tournaments').hidden = data.tournaments.length === 0;
+    $('profile-tournament-list').replaceChildren(
+      ...data.tournaments.map((t) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="strong"><a></a></td><td class="place"></td><td class="played"></td><td class="wdl"></td>' +
+          '<td class="score"></td><td class="date"></td>';
+        tr.querySelector('a').textContent = t.name;
+        tr.querySelector('a').href = tournamentHref(t.id);
+        tr.querySelector('.place').textContent = `${t.place} of ${t.players}`;
+        tr.querySelector('.played').textContent = t.played;
+        tr.querySelector('.wdl').textContent = `${t.wins} / ${t.draws} / ${t.losses}`;
+        tr.querySelector('.score').textContent = t.score;
+        tr.querySelector('.date').textContent = new Date(t.starts_at).toLocaleDateString(undefined, { dateStyle: 'medium' });
+        tr.addEventListener('click', () => { location.href = tournamentHref(t.id); });
+        return tr;
+      })
+    );
     $('profile-empty').hidden = data.games.length > 0;
     $('profile-list').replaceChildren(
       ...data.games.map((game) => {
@@ -493,6 +572,28 @@
     };
     $('tournament-join').addEventListener('click', () => act('join'));
     $('tournament-withdraw').addEventListener('click', () => act('withdraw'));
+    // Deleting takes two clicks, like resigning.
+    let deleteArmed = false;
+    $('tournament-delete').addEventListener('click', async () => {
+      const button = $('tournament-delete');
+      if (!deleteArmed) {
+        deleteArmed = true;
+        button.textContent = 'Click again to delete';
+        button.classList.add('armed');
+        setTimeout(() => {
+          deleteArmed = false;
+          button.textContent = 'Delete tournament';
+          button.classList.remove('armed');
+        }, 3000);
+        return;
+      }
+      try {
+        await request('DELETE', `/api/tournaments/${encodeURIComponent(id)}`, {});
+        location.href = '/?tournaments';
+      } catch (err) {
+        $('tournament-error').textContent = err.message;
+      }
+    });
 
     tourEvents = new EventSource(`/api/tournaments/${encodeURIComponent(id)}/events`);
     tourEvents.onmessage = (e) => {
@@ -508,6 +609,10 @@
       const paired = JSON.parse(e.data);
       storeToken(paired.room, paired.token);
       enterRoom(paired.room);
+    });
+    tourEvents.addEventListener('deleted', () => {
+      tourEvents.close();
+      location.href = '/?tournaments';
     });
     tourEvents.onerror = () => {
       if (tour) return; // a dropped connection reconnects by itself
@@ -544,6 +649,7 @@
     $('tournament-join').hidden = !(account && open && !playing);
     $('tournament-join').textContent = me ? 'Rejoin' : 'Join';
     $('tournament-withdraw').hidden = !(open && playing);
+    $('tournament-delete').hidden = !(account && account.id === t.creatorId);
     const note = $('tournament-note');
     note.className = '';
     const leader = t.standings[0];
@@ -694,7 +800,7 @@
       snapAt = performance.now();
       // A move was played (not a takeback or a rematch, which lower the count).
       if (previous && snap.game.moveCount > previous.game.moveCount && snap.game.last.from !== null) {
-        moveSound(snap.game.last.captured);
+        playSound(snap.game.last.captured ? 'capture' : 'move');
       }
       if (snap.game.moveCount !== seenMove) {
         seenMove = snap.game.moveCount;
@@ -717,13 +823,13 @@
     setInterval(updateClocks, 100);
   }
 
-  // Chime when an opponent has been found (the game is ready to start) and when the game ends.
+  // Alert sound when an opponent has been found (the game is ready to start) and when the game ends.
   function announce(previous, current) {
     const fresh = bothSeated(current) && !current.game.winner && current.game.moveCount === 0;
     const wasReady = previous && bothSeated(previous) && !previous.game.winner;
     const started = current.you && fresh && !wasReady;
     const ended = previous && !previous.game.winner && current.game.winner;
-    if (started || ended) chime();
+    if (started || ended) playSound('alert');
   }
 
   async function copyLink() {
@@ -1254,6 +1360,7 @@
     } catch { /* accounts stay off */ }
     renderAccount();
     bindDialogs();
+    bindSoundDialog();
     bindBoardResize();
     $('nav-tournaments').hidden = !accountsOn;
 
