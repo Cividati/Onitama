@@ -1,0 +1,17 @@
+{
+  "name": "onitama-online",
+  "version": "1.0.0",
+  "description": "Play Onitama with a friend in the browser",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Onitama</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header id="top">
+    <a href="/" class="brand">onitama</a>
+    <nav><a href="/">Play</a></nav>
+    <div id="account" hidden>
+      <button id="signin" class="link" hidden>Sign in</button>
+      <a id="me-link" hidden></a>
+      <button id="signout" class="link" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <main id="lobby" hidden>
+    <div id="lobby-main">
+      <div id="pools" aria-label="Quick pairing">
+        <button class="pool" data-tc="3+2"><span class="tc">3+2</span><span class="perf">Blitz</span></button>
+        <button class="pool" data-tc="5+0"><span class="tc">5+0</span><span class="perf">Blitz</span></button>
+        <button class="pool" data-tc="10+0"><span class="tc">10+0</span><span class="perf">Rapid</span></button>
+      </div>
+      <p id="pool-note"></p>
+
+      <section class="box" id="live">
+        <h2>Live games</h2>
+        <table>
+          <thead>
+            <tr><th>Players</th><th>Time</th><th>Mode</th><th>Move</th><th>Watching</th><th></th></tr>
+          </thead>
+          <tbody id="live-list"></tbody>
+        </table>
+        <p id="live-empty">No games are being played right now.</p>
+      </section>
+    </div>
+
+    <aside id="lobby-side">
+      <button id="create" class="big-button">Play with a friend</button>
+      <p id="lobby-error" class="error" role="alert"></p>
+      <div class="box" id="leaderboard" hidden>
+        <h2>Leaderboard</h2>
+        <ol id="leaders"></ol>
+      </div>
+      <div class="box howto">
+        <h2>How to play</h2>
+        <ul>
+          <li>On your turn pick one of your two cards, then move any of your pieces to a square the card shows (relative to the light centre square).</li>
+          <li>Landing on an enemy piece captures it. You can't land on your own pieces.</li>
+          <li>The card you used becomes the spare; you take the previous spare, and your opponent gets yours after their move.</li>
+          <li><strong>Win</strong> by capturing the enemy master (crown), or by moving your master onto the enemy temple — the ringed square in the middle of their home row.</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <main id="profile" hidden>
+    <section class="box" id="profile-head">
+      <h1 id="profile-name"></h1>
+      <div id="profile-rating"></div>
+      <p id="profile-stats"></p>
+    </section>
+    <section class="box" id="profile-games">
+      <h2>Games</h2>
+      <table>
+        <thead>
+          <tr><th>Result</th><th>Opponent</th><th>Mode</th><th>Moves</th><th>Rating</th><th>Date</th></tr>
+        </thead>
+        <tbody id="profile-list"></tbody>
+      </table>
+      <p id="profile-empty">No games yet.</p>
+    </section>
+  </main>
+
+  <main id="game" hidden>
+    <aside id="side">
+      <div class="box" id="info">
+        <div class="info-title" id="info-title"></div>
+        <div id="info-players"></div>
+        <div class="info-meta"><span id="room-code"></span><span id="watchers"></span></div>
+      </div>
+      <div class="box" id="spare-box">
+        <div id="spare"></div>
+        <div>
+          <h3>Spare card</h3>
+          <p id="spare-label"></p>
+        </div>
+      </div>
+      <div class="box" id="chat">
+        <h3>Chat room</h3>
+        <div id="chat-scroll"><ol id="chat-list"></ol></div>
+        <form id="chat-form">
+          <input id="chat-input" maxlength="200" autocomplete="off" placeholder="Please be nice in the chat!" aria-label="Chat message">
+        </form>
+      </div>
+    </aside>
+
+    <div id="board" role="grid" aria-label="Board"></div>
+
+    <section class="hand" id="opp-hand" aria-label="Opponent's cards"></section>
+    <div class="player" id="opp-label"></div>
+
+    <div id="moves-box">
+      <div id="share" hidden>
+        <p>To invite someone to play, give them this URL:</p>
+        <div class="share-row">
+          <input id="share-link" readonly aria-label="Invite link">
+          <button id="copy" class="button">Copy</button>
+        </div>
+      </div>
+      <div id="replay" aria-label="Replay moves">
+        <button data-go="first" title="First move" aria-label="First move">|‹</button>
+        <button data-go="prev" title="Previous move (←)" aria-label="Previous move">‹</button>
+        <button data-go="next" title="Next move (→)" aria-label="Next move">›</button>
+        <button data-go="last" title="Last move" aria-label="Last move">›|</button>
+      </div>
+      <div id="moves-scroll"><ol id="moves"></ol></div>
+      <div id="status" role="status" aria-live="polite"></div>
+      <div id="offer" hidden>
+        <span id="offer-text"></span>
+        <button id="offer-accept" class="button good">✓ Accept</button>
+        <button id="offer-decline" class="button bad">✗ Decline</button>
+      </div>
+      <div id="controls">
+        <button id="takeback" class="button flat" title="Ask to take back your last move" hidden>↶ Takeback</button>
+        <button id="draw" class="button flat" title="Offer a draw" hidden>½ Draw</button>
+        <button id="resign" class="button flat" hidden>⚑ Resign</button>
+        <button id="rematch" class="button" hidden>Rematch</button>
+        <a id="analysis" class="button flat" target="_blank" rel="noopener" hidden>Analysis board</a>
+      </div>
+    </div>
+
+    <div class="player" id="my-label"></div>
+    <section class="hand" id="my-hand" aria-label="Your cards"></section>
+  </main>
+
+  <dialog id="auth-dialog">
+    <form id="auth-form">
+      <h2>Sign in</h2>
+      <a id="google-login" class="button google" href="/auth/google" hidden>Continue with Google</a>
+      <div class="or" id="auth-or" hidden>or use a username</div>
+      <label>Username
+        <input id="auth-username" autocomplete="username" required minlength="3" maxlength="20" pattern="[A-Za-z0-9_\-]+">
+      </label>
+      <label>Password
+        <input id="auth-password" type="password" autocomplete="current-password" required minlength="8" maxlength="200">
+      </label>
+      <p class="error" id="auth-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="button" value="login">Sign in</button>
+        <button type="submit" class="button good" value="register">Create account</button>
+        <button type="button" class="button flat" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="friend-dialog">
+    <form id="friend-form">
+      <h2>Play with a friend</h2>
+      <label>Time control
+        <select id="friend-tc">
+          <option value="">Unlimited</option>
+          <option>3+2</option>
+          <option>5+0</option>
+          <option>10+0</option>
+        </select>
+      </label>
+      <fieldset>
+        <legend>Cards</legend>
+        <label class="inline"><input type="radio" name="cards" value="random" checked> Five random cards</label>
+        <label class="inline"><input type="radio" name="cards" value="custom"> Choose the five cards</label>
+      </fieldset>
+      <div id="card-picker" hidden></div>
+      <p class="error" id="friend-error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="submit" class="button good" id="friend-create">Create game</button>
+        <button type="button" class="button flat" data-close>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/game.js"></script>
+  <script src="/client.js"></script>
+</body>
+</html>
