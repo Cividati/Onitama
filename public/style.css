@@ -170,12 +170,11 @@ a.button { display: inline-block; }
 /* ---------- game layout ---------- */
 
 #game {
-  max-width: 1160px;
   margin: 8px auto 24px;
   padding: 0 16px;
   display: grid;
   justify-content: center;
-  grid-template-columns: 240px auto 320px;
+  grid-template-columns: 240px calc(var(--cell) * 5) 320px;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   grid-template-areas:
     "side board opp-hand"
@@ -209,7 +208,11 @@ a.button { display: inline-block; }
 /* ---------- board ---------- */
 
 #board {
+  position: relative;
   display: grid;
+  /* A fixed size, so the layout can never squeeze the board and clip a column. */
+  width: calc(var(--cell) * 5);
+  height: calc(var(--cell) * 5);
   grid-template-columns: repeat(5, var(--cell));
   grid-template-rows: repeat(5, var(--cell));
   border-radius: 3px;
@@ -250,6 +253,20 @@ a.button { display: inline-block; }
 }
 .cell.temple-red::before { border-color: var(--red); }
 .cell.temple-blue::before { border-color: var(--blue); }
+
+/* Drag the bottom right corner to resize the board; double-click to reset. */
+#board-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0.35;
+  background: linear-gradient(135deg, transparent 50%, #1b1b1b 50%, #1b1b1b 60%, transparent 60%, transparent 72%, #1b1b1b 72%, #1b1b1b 82%, transparent 82%);
+}
+#board-resize:hover, #board-resize.dragging { opacity: 0.8; }
 
 .coord { position: absolute; font-size: 11px; font-weight: 700; line-height: 1; color: var(--sq-dark); pointer-events: none; }
 .cell.dark .coord { color: var(--sq-light); }
@@ -450,6 +467,7 @@ button.card:hover { background: var(--panel-hi); }
     grid-template-areas: "opp-hand" "opp-bar" "board" "my-bar" "my-hand" "spare" "moves" "chat" "info";
     row-gap: 0;
   }
+  #board-resize { display: none; }
   #opp-label, #my-label { border-radius: 0; }
   #moves-box { margin-top: 8px; border-radius: 3px; border: 0; }
   #moves-scroll { min-height: 120px; }

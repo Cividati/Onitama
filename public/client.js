@@ -799,7 +799,69 @@
       cell.addEventListener('click', () => onCell(index));
       cells.push(cell);
     }
-    $('board').replaceChildren(...cells);
+    $('board').replaceChildren(...cells, resizeHandle);
+  }
+
+  // ---------- board size ----------
+
+  // The square size is set in whole pixels, so all 25 squares are exactly the same size.
+  const SIZE_KEY = 'onitama:board-cell';
+  const MIN_CELL = 44;
+  const narrow = matchMedia('(max-width: 980px)');
+  const resizeHandle = document.createElement('div');
+  resizeHandle.id = 'board-resize';
+  resizeHandle.title = 'Drag to resize the board (double-click to reset)';
+
+  function storedCell() {
+    try { return Number(localStorage.getItem(SIZE_KEY)) || null; } catch { return null; }
+  }
+
+  // Largest square that still leaves room for the columns beside the board.
+  function maxCell() {
+    const width = document.documentElement.clientWidth;
+    if (narrow.matches) return Math.floor(Math.min(96, (width - 16) / 5));
+    return Math.floor((width - 624) / 5); // side columns 240 + 320, gaps 32, padding 32
+  }
+
+  function applyBoardSize(wanted) {
+    const max = maxCell();
+    let cell = max;
+    if (!narrow.matches) {
+      const fallback = Math.min(112, Math.floor((window.innerHeight - 96) / 5));
+      cell = Math.min(max, Math.max(MIN_CELL, wanted || storedCell() || fallback));
+    }
+    document.documentElement.style.setProperty('--cell', `${cell}px`);
+    return cell;
+  }
+
+  function bindBoardResize() {
+    let cell = null; // set while dragging
+    resizeHandle.addEventListener('pointerdown', (event) => {
+      event.preventDefault();
+      resizeHandle.setPointerCapture(event.pointerId);
+      resizeHandle.classList.add('dragging');
+      cell = applyBoardSize();
+    });
+    resizeHandle.addEventListener('pointermove', (event) => {
+      if (cell === null) return;
+      const rect = $('board').getBoundingClientRect();
+      const side = Math.max(event.clientX - rect.left, event.clientY - rect.top);
+      cell = applyBoardSize(Math.round(side / 5));
+    });
+    const finish = () => {
+      if (cell === null) return;
+      try { localStorage.setItem(SIZE_KEY, String(cell)); } catch { /* private mode */ }
+      cell = null;
+      resizeHandle.classList.remove('dragging');
+    };
+    resizeHandle.addEventListener('pointerup', finish);
+    resizeHandle.addEventListener('pointercancel', finish);
+    resizeHandle.addEventListener('dblclick', () => {
+      try { localStorage.removeItem(SIZE_KEY); } catch { /* private mode */ }
+      applyBoardSize();
+    });
+    window.addEventListener('resize', () => applyBoardSize());
+    applyBoardSize();
   }
 
   function resultText(g) {
@@ -926,6 +988,7 @@
     } catch { /* accounts stay off */ }
     renderAccount();
     bindDialogs();
+    bindBoardResize();
 
     if (params.get('user')) showProfile(params.get('user'));
     else if (params.get('game')) startStoredAnalysis(params.get('game'));
