@@ -55,6 +55,7 @@ Things that are easy to get wrong:
 - Hosting is Railway; the domain and DNS are at Cloudflare (proxied).
 - `.github/workflows/release.yml` moves the `production` branch to the released commit. Never push to `production` directly.
 - Publishing a release is the maintainer's decision. Don't create one unless asked.
+- After a release, Railway holds the production deployment as `NEEDS_APPROVAL` because the branch was moved by the GitHub Actions bot. Approve it in the Railway dashboard (or with the `deploymentApprove` mutation), then confirm the footer version on https://onitama.org.
 - The footer version is `package.json`'s version plus the deployed commit; bump `package.json` in the commit that will be released.
 - The two environments have separate databases and separate variables (`DATABASE_URL`, `DONATE_URL`, Google sign-in, `PUBLIC_URL`).
 
