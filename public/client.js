@@ -139,12 +139,36 @@
     source.start(at);
   }
 
+  // Wood struck by wood: a few milliseconds of noise (the impact) set three
+  // resonances ringing, as the body of a wooden piece or block would. `freq` is
+  // the lowest resonance, `ring` how many seconds it sounds for. Pitch and the
+  // noise itself differ a little on every strike, so repeated moves don't sound stamped.
+  function knock(a, at, { freq, gain, ring }) {
+    const count = Math.floor(a.ctx.sampleRate * 0.005);
+    const buffer = a.ctx.createBuffer(1, count, a.ctx.sampleRate);
+    const samples = buffer.getChannelData(0);
+    for (let i = 0; i < count; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / count);
+    const source = a.ctx.createBufferSource();
+    source.buffer = buffer;
+    const pitch = freq * (0.96 + Math.random() * 0.08);
+    for (const [ratio, level, length] of [[1, 1, 1], [2.45, 0.45, 0.55], [4.9, 0.2, 0.3]]) {
+      const mode = a.ctx.createBiquadFilter();
+      mode.type = 'bandpass';
+      mode.frequency.value = pitch * ratio;
+      mode.Q.value = Math.max(1, Math.PI * pitch * ratio * ring * length * 0.3);
+      const env = a.ctx.createGain();
+      env.gain.value = gain * level * Math.sqrt(mode.Q.value);
+      source.connect(mode).connect(env).connect(a.out);
+    }
+    source.start(at);
+  }
+
   const SOUND_THEMES = {
     wood: {
       label: 'Soft wood',
-      move: (a, t) => { tick(a, t, { freq: 2300, q: 2.5, gain: 0.5, length: 0.03 }); tone(a, t, { freq: 480, to: 330, gain: 0.1, decay: 0.05 }); },
-      capture: (a, t) => { SOUND_THEMES.wood.move(a, t); tick(a, t + 0.06, { freq: 1700, q: 2.5, gain: 0.55, length: 0.035 }); },
-      alert: (a, t) => { tone(a, t, { freq: 587.33, gain: 0.12, decay: 0.3, type: 'triangle' }); tone(a, t + 0.11, { freq: 880, gain: 0.12, decay: 0.4, type: 'triangle' }); },
+      move: (a, t) => knock(a, t, { freq: 620, gain: 1.1, ring: 0.05 }),
+      capture: (a, t) => { knock(a, t, { freq: 880, gain: 0.9, ring: 0.035 }); knock(a, t + 0.075, { freq: 540, gain: 1.2, ring: 0.06 }); },
+      alert: (a, t) => { knock(a, t, { freq: 660, gain: 1.7, ring: 0.12 }); knock(a, t + 0.15, { freq: 880, gain: 1.7, ring: 0.14 }); },
     },
     click: {
       label: 'Click',
