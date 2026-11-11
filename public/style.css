@@ -427,7 +427,7 @@ button.card:hover { background: var(--panel-hi); }
 .card.dim { opacity: 0.6; }
 #spare .card { box-shadow: none; padding: 0; background: none; }
 
-.card-grid { display: grid; grid-template-columns: repeat(5, 15px); grid-template-rows: repeat(5, 15px); gap: 2px; }
+.card-grid { display: grid; grid-template-columns: repeat(5, var(--card-cell, 15px)); grid-template-rows: repeat(5, var(--card-cell, 15px)); gap: 2px; }
 .card-grid i { background: var(--card-sq); border-radius: 1px; }
 .card-grid i.c { background: var(--strong); }
 .card.red .card-grid i.m { background: var(--red); }
@@ -574,19 +574,40 @@ button.card:hover { background: var(--panel-hi); }
 /* ---------- narrow screens ---------- */
 
 @media (max-width: 980px) {
-  :root { --cell: min(96px, (100vw - 16px) / 5); }
-  #top { padding: 0 8px; }
+  :root { --cell: max(40px, min(96px, (100vw - 16px) / 5, (100dvh - 318px) / 5)); }
+  #top { padding: 0 8px; height: 44px; gap: 14px; }
+  .brand { font-size: 22px; }
   #lobby { grid-template-columns: minmax(0, 1fr); grid-template-areas: "app" "table" "side" "tv" "tours" "leaders" "feed" "footer"; }
   #lobby-side, #lobby-start { margin-top: 0; padding-top: 0; }
   #lobby-tv, #leaderboard { width: min(100%, 420px); margin: 0 auto; }
+  /* A game fits one phone screen: the opponent's cards and the spare, the
+     board between the two clocks, then your cards. Moves and chat are below. */
   #game {
+    margin-top: 0;
     padding: 0 8px;
-    grid-template-columns: calc(var(--cell) * 5);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: calc(var(--cell) * 5 + 16px);
     grid-template-rows: none;
-    grid-template-areas: "opp-hand" "opp-bar" "board" "my-bar" "my-hand" "spare" "moves" "chat" "info";
+    grid-template-areas:
+      "opp-hand opp-hand spare"
+      "opp-bar opp-bar opp-bar"
+      "board board board"
+      "my-bar my-bar my-bar"
+      "my-hand my-hand my-hand"
+      "moves moves moves"
+      "chat chat chat"
+      "info info info";
+    column-gap: 6px;
     row-gap: 0;
   }
   #board-resize { display: none; }
+  .hand { gap: 6px; }
+  .card { padding: 6px 4px 4px; gap: 4px; }
+  .card-name { font-size: 12px; }
+  #opp-hand, #spare-box { --card-cell: 10px; margin: 0 0 6px; }
+  #my-hand { --card-cell: 12px; margin-top: 6px; }
+  .player { height: 32px; font-size: 14px; }
+  .player.timed .clock { font-size: 18px; min-width: 70px; }
   #opp-label, #my-label { border-radius: 0; }
   #moves-box { margin-top: 8px; border-radius: 3px; border: 0; }
   #moves-scroll { min-height: 120px; }
@@ -597,9 +618,37 @@ button.card:hover { background: var(--panel-hi); }
   .pool.seeking::after { content: "Waiting… tap to cancel"; }
   /* Let the side column's boxes take their own places in the single column. */
   #side { display: contents; }
-  #spare-box { grid-area: spare; margin-top: 8px; }
+  /* The spare sits beside the opponent's cards, outlined to set it apart. */
+  #spare-box { grid-area: spare; padding: 0; gap: 0; justify-content: center; background: none; box-shadow: none; outline: 1px dashed var(--line); outline-offset: -1px; }
+  #spare-box > div:last-child { display: none; }
+  #spare .card { padding: 6px 4px 4px; }
+  #spare .card-name::after { content: "· spare"; color: var(--dim); }
   #chat { grid-area: chat; margin-top: 8px; }
   #info { grid-area: info; margin-top: 8px; }
+}
+
+/* A phone on its side: the board on the left, cards and clocks stacked on the right. */
+@media (max-width: 980px) and (orientation: landscape) and (max-height: 560px) {
+  :root { --cell: max(40px, min(96px, (100dvh - 54px) / 5, (100vw - 290px) / 5)); }
+  #game {
+    width: auto;
+    grid-template-columns: calc(var(--cell) * 5) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "board opp-hand opp-hand"
+      "board opp-bar opp-bar"
+      "board spare spare"
+      "board my-bar my-bar"
+      "board my-hand my-hand"
+      "moves moves moves"
+      "chat chat chat"
+      "info info info";
+    column-gap: 8px;
+  }
+  #opp-hand, #my-hand { --card-cell: 9px; margin: 0; }
+  .hand .card { flex-direction: row; justify-content: center; gap: 10px; }
+  #spare-box { --card-cell: 9px; margin: 4px 0; align-self: center; }
+  #spare .card { flex-direction: row; gap: 10px; }
 }
 
 /* The analysis board has no room, presence or live controls. */

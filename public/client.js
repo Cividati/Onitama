@@ -1537,7 +1537,13 @@
   // Largest square that still leaves room for the columns beside the board.
   function maxCell() {
     const width = document.documentElement.clientWidth;
-    if (narrow.matches) return Math.floor(Math.min(96, (width - 16) / 5));
+    if (narrow.matches) {
+      // Leave room for the bar, both hands and both clocks (or, on a phone held sideways, a column of them).
+      const height = document.documentElement.clientHeight;
+      const sideways = width > height && height <= 560;
+      const fit = sideways ? Math.min((height - 54) / 5, (width - 290) / 5) : Math.min((width - 16) / 5, (height - 318) / 5);
+      return Math.floor(Math.max(40, Math.min(96, fit)));
+    }
     return Math.floor((width - 624) / 5); // side columns 240 + 320, gaps 32, padding 32
   }
 
@@ -1579,6 +1585,7 @@
       applyBoardSize();
     });
     window.addEventListener('resize', () => applyBoardSize());
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', () => applyBoardSize());
     applyBoardSize();
   }
 
