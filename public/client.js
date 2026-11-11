@@ -604,7 +604,8 @@
           other.classList.toggle('active', other === tab);
           other.setAttribute('aria-selected', other === tab);
         }
-        $('pools').hidden = tab.dataset.tab !== 'pools';
+        // Quick pairing keeps its place while hidden, so the live list has exactly its size.
+        $('pools').classList.toggle('behind', tab.dataset.tab !== 'pools');
         $('live').hidden = tab.dataset.tab !== 'live';
       });
     }
@@ -728,11 +729,7 @@
     return format.format(Math.round(minutes / 1440), 'day');
   }
 
-  const TROPHY =
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v2h4v3a5 5 0 0 1-4.6 5A5 5 0 0 1 13 15.9V19h3v2H8v-2h3v-3.1A5 5 0 0 1 7.6 13 ' +
-    '5 5 0 0 1 3 8V5h4zm0 4H5v1a3 3 0 0 0 2 2.8zm10 0v3.8A3 3 0 0 0 19 8V7z"/></svg>';
-
-  // Running and upcoming tournaments: spotlights on the left, a table at the bottom.
+  // Running and upcoming tournaments, in the box left of quick pairing.
   async function refreshTournaments() {
     let open;
     try {
@@ -743,26 +740,14 @@
     }
     const now = Date.now();
     const playersText = (t) => `${t.players} player${t.players === 1 ? '' : 's'}`;
-    $('spotlights').replaceChildren(
-      ...open.slice(0, 3).map((t) => {
-        const a = document.createElement('a');
-        a.className = `spotlight ${t.status}`;
-        a.href = tournamentHref(t.id);
-        a.innerHTML = `${TROPHY}<span class="content"><span class="name"></span><span class="more"></span></span>`;
-        a.querySelector('.name').textContent = t.name;
-        a.querySelector('.more').textContent =
-          `${playersText(t)} • ${t.status === 'running' ? 'Playing now' : inTime(t.startsAt)}`;
-        return a;
-      })
-    );
     $('lobby-tours-empty').hidden = open.length > 0;
     $('lobby-tours-list').replaceChildren(
       ...open.slice(0, 5).map((t) => {
         const length = t.minutes * 60000;
         const tr = document.createElement('tr');
         tr.innerHTML =
-          '<td class="name"><a></a></td><td class="progress"><span class="bar"><i></i><span></span></span></td>' +
-          '<td class="duration"></td><td class="players"></td>';
+          '<td class="name"><a></a></td><td class="players"></td>' +
+          '<td class="progress"><span class="bar"><i></i><span></span></span></td>';
         tr.querySelector('a').textContent = t.name;
         tr.querySelector('a').href = tournamentHref(t.id);
         const running = t.status === 'running';
@@ -771,8 +756,7 @@
         tr.querySelector('.bar span').textContent = running
           ? `${left} minute${left === 1 ? '' : 's'} remaining`
           : inTime(t.startsAt);
-        tr.querySelector('.duration').textContent = durationText(t.minutes);
-        tr.querySelector('.players').textContent = t.players;
+        tr.querySelector('.players').textContent = playersText(t);
         tr.addEventListener('click', () => navigate(tournamentHref(t.id)));
         return tr;
       })
