@@ -3,6 +3,7 @@
   "version": "0.2.1",
   "description": "Play Onitama with a friend in the browser",
   "private": true,
+  "license": "MIT",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -64,3 +64,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up, make a change and get 
 - `server.js` — HTTP server: rooms, pairing, clocks, move validation, Server-Sent Events for live updates
 - `lib/` — accounts and sessions, Elo ratings, tournaments, the bot's search, Postgres schema
 - `public/client.js`, `index.html`, `style.css` — the UI
+
+## License
+
+[MIT](LICENSE). Onitama is a board game by Shimpei Sato, published by Arcane Wonders; this is an unofficial fan project.
