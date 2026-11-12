@@ -144,6 +144,7 @@
     <div id="lobby-footer">
       <a href="/?tournaments" id="footer-tournaments" hidden>Tournaments</a>
       <a href="/?donate">Donate</a>
+      <a href="/?computer">How the computer plays</a>
       <a href="https://github.com/Cividati/Onitama" target="_blank" rel="noopener">Source code</a>
       <a href="https://en.wikipedia.org/wiki/Onitama" target="_blank" rel="noopener">About Onitama</a>
       <span id="version"></span>
@@ -263,6 +264,53 @@
         <li>Report bugs and suggest ideas on <a href="https://github.com/Cividati/Onitama/issues" target="_blank" rel="noopener">GitHub</a>.</li>
         <li>Contribute code: the project is <a href="https://github.com/Cividati/Onitama" target="_blank" rel="noopener">open source</a>.</li>
       </ul>
+    </section>
+  </main>
+
+  <main id="computer" hidden>
+    <section class="box" id="computer-box">
+      <h1>How the computer plays</h1>
+      <p>When you play with the computer, its moves are worked out on our server by a short program that reads the same rules you play by. It does not learn from your games, it has no book of openings and it does not cheat: it sees exactly what you see, the board, both hands and the spare card.</p>
+
+      <h2>Looking ahead</h2>
+      <p>On its turn the computer tries every move it has, both cards and every piece. For each one it imagines your best answer, then its best answer to that, and so on, a few moves deep. It plays the move that leaves it best off if you always answer as well as you can.</p>
+      <p>Because Onitama shows every card, it knows which card you will pick up after its move, and which one it will get back after yours. Most of what it sees ahead comes from that.</p>
+      <p>Trying every line would take too long, so it skips a line as soon as it is clear it can't beat a move already found, and it looks at captures first because they settle things fastest. It looks one move deep, then two, then three, and keeps the best answer it has finished when its thinking time is up.</p>
+
+      <h2>Judging a position</h2>
+      <p>When it stops looking ahead, it scores the position it has reached by counting:</p>
+      <ul>
+        <li><strong>Students.</strong> Each student is worth 100 points. This is by far the biggest part of the score, so it will rarely give one away.</li>
+        <li><strong>The middle of the board.</strong> A piece in the middle column earns 5 points and one beside it 3, because pieces there reach more squares. The master counts double for this.</li>
+        <li><strong>Moving forward.</strong> Each row a student has advanced earns 2 points.</li>
+        <li><strong>Winning and losing.</strong> Taking the enemy master or reaching the enemy temple outweighs everything else. It takes a win the moment it sees one, and prefers a quick win to a slow one.</li>
+      </ul>
+      <p>The same score is counted for your pieces and subtracted, so it is always weighing its position against yours.</p>
+
+      <h2>The three levels</h2>
+      <table id="computer-levels">
+        <thead><tr><th>Level</th><th>Looks ahead</th><th>Mistakes</th><th>Thinks for at most</th></tr></thead>
+        <tbody>
+          <tr><td>Easy</td><td>Its own move only</td><td>Often misjudges a move by more than a student</td><td>0.1 s</td></tr>
+          <tr><td>Medium</td><td>Its move, your reply, its next move</td><td>Sometimes picks a slightly worse move</td><td>0.2 s</td></tr>
+          <tr><td>Hard</td><td>Up to 8 moves</td><td>None</td><td>0.25 s</td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li><strong>Easy</strong> never thinks about your reply, so it will leave pieces where you can take them. It also adds a large random error to every move it considers, so it sometimes passes up a free capture. It never misses a win in one move.</li>
+        <li><strong>Medium</strong> sees your immediate answer and the move after it. Its small random error only changes its choice between moves that are almost equally good.</li>
+        <li><strong>Hard</strong> plays the best move it can find with no randomness, looking as deep as a quarter of a second allows. If it finds a forced win it stops looking and plays it.</li>
+      </ul>
+      <p>When several moves score the same, it picks one at random, so no two games against it go quite the same way.</p>
+
+      <h2>At the table</h2>
+      <ul>
+        <li>It waits a moment before each move so you can follow what it did.</li>
+        <li>It always lets you take a move back, and always plays on rather than agreeing to a draw.</li>
+        <li>Games against the computer are never rated.</li>
+      </ul>
+      <p class="note">The computer is open source: its whole program is in <a href="https://github.com/Cividati/Onitama/blob/main/lib/bot.js" target="_blank" rel="noopener">lib/bot.js</a>.</p>
+      <button type="button" class="button good" id="computer-play">Play with the computer</button>
     </section>
   </main>
 
@@ -431,7 +479,7 @@
           <option value="">Unlimited</option>
         </select>
       </label>
-      <p class="note">Games against the computer are never rated.</p>
+      <p class="note">Games against the computer are never rated. <a href="/?computer" data-close>How does it play?</a></p>
       <p class="error" id="bot-error" role="alert"></p>
       <div class="dialog-actions">
         <button type="submit" class="button good">Play</button>

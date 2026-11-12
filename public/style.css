@@ -834,6 +834,26 @@ td.diff { font-weight: 600; }
 #donate-link { margin-top: 8px; padding: 14px 28px; font-size: 16px; }
 #donate-closed { margin-top: 8px; font-size: 14px; }
 
+/* ---------- how the computer plays ---------- */
+
+#computer { max-width: 720px; margin: 24px auto; padding: 0 16px; }
+#computer-box { padding: 26px 30px 24px; font-size: 15px; line-height: 1.55; }
+#computer-box h1 { margin: 0 0 12px; font-weight: 300; font-size: 34px; color: var(--strong); line-height: 1.2; }
+#computer-box h2 { margin: 26px 0 8px; font-size: 18px; }
+#computer-box ul { padding-left: 20px; }
+#computer-box li { margin: 6px 0; }
+#computer-box .note { margin-top: 20px; }
+#computer-levels { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 14px; }
+#computer-levels th, #computer-levels td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+#computer-levels th { color: var(--dim); font-weight: 600; font-size: 12.5px; }
+#computer-levels td:first-child { color: var(--strong); font-weight: 600; }
+#computer-play { margin-top: 14px; padding: 12px 24px; font-size: 15px; }
+@media (max-width: 560px) {
+  #computer-box { padding: 20px 18px; }
+  #computer-box h1 { font-size: 28px; }
+  #computer-levels th, #computer-levels td { padding: 8px 6px; }
+}
+
 /* ---------- tournaments ---------- */
 
 #tournaments, #tournament { max-width: 900px; margin: 24px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
