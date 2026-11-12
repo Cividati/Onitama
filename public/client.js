@@ -684,10 +684,12 @@
   }
 
   function bindBotDialog() {
-    $('play-bot').addEventListener('click', () => {
+    const open = () => {
       $('bot-error').textContent = '';
       $('bot-dialog').showModal();
-    });
+    };
+    $('play-bot').addEventListener('click', open);
+    $('computer-play').addEventListener('click', open);
     $('bot-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
@@ -852,6 +854,13 @@
     if (donateUrl) $('donate-link').href = donateUrl;
     $('donate-link').hidden = !donateUrl;
     $('donate-closed').hidden = !!donateUrl;
+  }
+
+  // ---------- how the computer plays ----------
+
+  function showComputer() {
+    $('computer').hidden = false;
+    document.title = 'How the computer plays — Onitama';
   }
 
   // ---------- profile and match history ----------
@@ -1844,7 +1853,7 @@
 
   // ---------- start ----------
 
-  // Moving between the lobby, tournaments, profiles and the donate page swaps
+  // Moving between the lobby, tournaments, profiles and the donate and computer pages swaps
   // the visible <main> without loading a new document, so the top bar stays put.
   // A game holds too much state to tear down: entering or leaving one is a page load.
 
@@ -1879,6 +1888,7 @@
     if (query.get('user')) showProfile(query.get('user'));
     else if (query.has('tournaments')) showTournaments();
     else if (query.has('donate')) showDonate();
+    else if (query.has('computer')) showComputer();
     else if (query.has('signup')) showSignup(query.get('signup'));
     else if (query.has('forgot')) showRecover('forgot');
     else if (query.get('reset')) showRecover('reset');
