@@ -1283,6 +1283,8 @@
         seenMove = snap.game.moveCount;
         sel = { card: null, from: null };
         hint = '';
+        // A takeback changes the position under an open card chooser.
+        if ($('move-card-dialog').open) $('move-card-dialog').close();
         viewPly = null; // a new move snaps the board back to the live position
       }
       announce(previous, snap);
@@ -1460,11 +1462,25 @@
       (card) => (!sel.card || sel.card === card) && movesFor(g, me, card, sel.from).includes(index)
     );
     if (!cards.length) return;
-    if (cards.length > 1) {
-      hint = 'Both of your cards allow that move — pick the card to use.';
-      return render();
-    }
+    if (cards.length > 1) return chooseCard(cards, sel.from, index);
     act('/move', { card: cards[0], from: sel.from, to: index });
+  }
+
+  // Both cards reach the square: ask which one to play rather than guess.
+  function chooseCard(cards, from, to) {
+    const dialog = $('move-card-dialog');
+    $('move-card-choices').replaceChildren(
+      ...cards.map((name) => {
+        const el = cardEl(name, snap.you, false, () => {
+          dialog.close();
+          if (canAct()) act('/move', { card: name, from, to });
+        });
+        el.type = 'button';
+        return el;
+      })
+    );
+    dialog.showModal();
+    dialog.querySelector('.card').focus();
   }
 
   // ---------- rendering ----------
@@ -1815,6 +1831,8 @@
     const view = me || 'red'; // spectators watch from Red's side
     const opp = other(view);
     const active = canAct();
+    // The game ended, or the clock ran out, while the card chooser was open.
+    if (!active && $('move-card-dialog').open) $('move-card-dialog').close();
     const waiting = !bothSeated(snap);
     const stuck = active && legalMoves(g).length === 0;
     const shown = isLive() ? g : Onitama.replay(g, viewPly);
