@@ -762,6 +762,12 @@ dialog .error { margin: 0; }
 .option-row .button { padding: 5px 8px; white-space: nowrap; }
 #option-volume { accent-color: var(--green); }
 
+#move-card-dialog { width: min(360px, calc(100vw - 24px)); }
+.dialog-note { margin: 0; text-align: center; color: var(--dim); }
+#move-card-choices { display: flex; gap: 10px; }
+#move-card-choices .card { background: var(--panel-hi); padding: 12px 8px 10px; }
+#move-card-choices .card:hover, #move-card-choices .card:focus-visible { background: var(--line); outline: 2px solid var(--green); }
+
 #card-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 #card-picker .card { background: var(--panel-hi); padding: 8px 4px 6px; }
 #card-picker .card:hover { background: var(--line); }
