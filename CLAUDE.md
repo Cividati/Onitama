@@ -34,6 +34,7 @@ Things that are easy to get wrong:
 - **Client navigation is in place.** Lobby, tournaments, profile and donate pages switch without a page load (`navigate`, `showPage`, `leavePage`). Timers for a page must be started with `every(fn, ms)` so `leavePage` clears them. Opening or leaving a game is a full page load.
 - **Bind once.** Event listeners are attached once in `boot()` through the `bind…` functions; the `show…` functions only fill in data.
 - **`/api/me` is cached** in `localStorage` (`onitama:me`) so the top bar renders before the request returns. A new field on `/api/me` goes through `applyMe`.
+- **Cloudflare caches scripts and styles in browsers for hours.** `server.js` adds `?v=<content hash>` to them when it serves `index.html`; a new static file must be added to `ASSET_RE` and the hash list, or visitors keep the old copy after a release.
 - **Single instance.** Games in progress are in memory; a restart loses them.
 
 ## Conventions

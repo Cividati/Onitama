@@ -50,6 +50,16 @@ const STATIC = {
   '/favicon.ico': ['favicon.svg', 'image/svg+xml'],
 };
 
+// The CDN in front of production tells browsers to keep scripts and styles for
+// hours, whatever we answer. The page therefore asks for them under an address
+// that changes whenever their content does.
+const ASSET_RE = /\/(style\.css|client\.js|game\.js)(?=")/g;
+const ASSET_VERSION = crypto
+  .createHash('sha256')
+  .update(['style.css', 'client.js', 'game.js'].map((name) => fs.readFileSync(path.join(__dirname, 'public', name))).join(''))
+  .digest('hex')
+  .slice(0, 10);
+
 // code -> room (see createRoom)
 const rooms = new Map();
 // time control -> { res, user } of the one player waiting to be paired
@@ -598,6 +608,7 @@ const server = http.createServer((req, res) => {
       res.writeHead(500);
       return res.end();
     }
+    if (entry[0] === 'index.html') data = data.toString().replace(ASSET_RE, `$&?v=${ASSET_VERSION}`);
     res.writeHead(200, { 'Content-Type': entry[1], 'Cache-Control': 'no-cache' });
     res.end(req.method === 'HEAD' ? undefined : data);
   });
