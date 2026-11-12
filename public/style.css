@@ -261,6 +261,7 @@ a.button { display: inline-block; }
 #lobby-footer a, #version { color: var(--dim); }
 #version { font-weight: 400; }
 #lobby-footer a:hover { color: var(--strong); }
+#fan-notice { flex-basis: 100%; margin: 2px 0 0; text-align: center; font-weight: 400; color: var(--dim); }
 
 /* Open tournaments */
 .tours-head { display: flex; justify-content: space-between; padding: 8px 12px; background: var(--panel-hi); color: var(--strong); font-weight: 600; }
