@@ -91,6 +91,7 @@ function createRoom(tc, cards) {
     tokens: { red: null, blue: null },
     users: { red: null, blue: null }, // signed-in account in each seat, if any
     bot: null, // { color, level } when the computer plays one side
+    local: false, // both sides played from one browser, which holds both seats with one token
     botTimer: null,
     tournament: null, // { id, name } for a tournament game
     result: null, // { gameId, diffs } once a finished game has been stored
@@ -106,8 +107,10 @@ function createRoom(tc, cards) {
   return { code, room };
 }
 
+// For a local game the seat is whichever side is to move.
 function seatOf(room, token) {
   if (typeof token !== 'string' || !token) return null;
+  if (room.local) return room.tokens.red === token ? room.game.turn : null;
   if (room.tokens.red === token) return 'red';
   if (room.tokens.blue === token) return 'blue';
   return null;
@@ -220,7 +223,8 @@ function presence(room) {
   if (room.bot) online[room.bot.color] = true;
   let spectators = 0;
   for (const client of room.clients) {
-    if (client.color) online[client.color] = true;
+    if (client.local) online.red = online.blue = true;
+    else if (client.color) online[client.color] = true;
     else spectators++;
   }
   return { online, spectators };
@@ -233,6 +237,7 @@ function snapshot(room, color) {
     seated: { red: !!room.tokens.red, blue: !!room.tokens.blue },
     ...presence(room),
     you: color,
+    local: room.local,
     players: room.users,
     rated: room.rated,
     tournament: room.tournament,
@@ -249,7 +254,8 @@ function snapshot(room, color) {
 function broadcast(room) {
   room.touched = Date.now();
   for (const client of room.clients) {
-    client.res.write(`data: ${JSON.stringify(snapshot(room, client.color))}\n\n`);
+    const color = client.local ? room.game.turn : client.color;
+    client.res.write(`data: ${JSON.stringify(snapshot(room, color))}\n\n`);
   }
   scheduleBot(room);
 }
@@ -267,7 +273,8 @@ function say(room, from, text) {
 }
 
 function openEvents(req, res, room, token) {
-  const client = { res, color: seatOf(room, token) };
+  const color = seatOf(room, token);
+  const client = { res, color, local: room.local && !!color };
   sseHeaders(res);
   res.write('retry: 2000\n\n');
   res.write(`event: chat\ndata: ${JSON.stringify({ reset: true, messages: room.chat })}\n\n`);
@@ -298,7 +305,7 @@ function onlineCount(req) {
 function liveGames() {
   const games = [];
   for (const [code, room] of rooms) {
-    if (!room.tokens.red || !room.tokens.blue || room.game.winner) continue;
+    if (!room.tokens.red || !room.tokens.blue || room.game.winner || room.local) continue;
     const { spectators } = presence(room);
     if (spectators === room.clients.size) continue;
     games.push({
@@ -459,6 +466,23 @@ function handleOffer(room, color, kind, answer) {
   return null;
 }
 
+// One person plays both sides, so there is nobody to ask: a draw is agreed at
+// once and a takeback undoes the last ply, whoever made it.
+function handleLocalOffer(room, kind) {
+  if (kind === 'draw') {
+    finish(room, 'draw', 'agreement');
+    say(room, 'system', 'Game drawn');
+    return null;
+  }
+  if (!room.game.history.length) return 'There is no move to take back';
+  room.game = Onitama.replay(room.game, room.game.history.length - 1);
+  room.turnAt = Date.now();
+  finish(room, null);
+  if (room.game.history.length) startClock(room);
+  say(room, 'system', 'Move taken back');
+  return null;
+}
+
 // ---------- HTTP API ----------
 
 // The creator's chosen cards as a clean list, or false if they are not five distinct real cards.
@@ -500,8 +524,17 @@ async function handleApi(req, res, url) {
     if (cards === false) return json(res, 400, { error: 'Choose exactly five different cards' });
     const level = body.bot === undefined || body.bot === null ? null : body.bot;
     if (level !== null && !Object.hasOwn(bot.LEVELS, level)) return json(res, 400, { error: 'Unknown bot level' });
+    if (level && body.local) return json(res, 400, { error: 'A local game has no bot' });
     const created = createRoom(body.tc, cards);
     if (level) seatBot(created.room, level);
+    if (body.local) {
+      // The creator holds both seats; anyone else who opens the link watches.
+      const token = newToken();
+      created.room.local = true;
+      created.room.tokens = { red: token, blue: token };
+      created.room.turnAt = Date.now();
+      return json(res, 201, { room: created.code, token });
+    }
     return json(res, 201, { room: created.code });
   }
 
@@ -570,7 +603,7 @@ async function handleApi(req, res, url) {
   }
 
   if (action === 'draw' || action === 'takeback') {
-    const error = handleOffer(room, color, action, body.answer);
+    const error = room.local ? handleLocalOffer(room, action) : handleOffer(room, color, action, body.answer);
     if (error) return json(res, 400, { error });
     return ok();
   }
