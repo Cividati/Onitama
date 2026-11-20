@@ -5,6 +5,7 @@ Play [Onitama](https://en.wikipedia.org/wiki/Onitama) in the browser, with a lic
 - **Quick pairing** at eleven time controls from 1+0 bullet to 30+20 classical: click a time control and you are matched with the next player who picks the same one.
 - **Play with a friend**: create a game (untimed or timed) and send the invite link.
 - **Play with the computer**: easy, medium or hard bot, untimed or timed. Bot games are never rated.
+- **Play on this device**: two people share one screen and take turns; the board turns round after every move. Never rated.
 - **Tournaments** (needs accounts): anyone signed in can schedule an arena. While it runs, the players on the tournament page are paired again and again; a win scores 2 points, a draw 1. Tournament games are rated. The creator can delete their tournament, and profiles list each player's tournaments and total points.
 - **In the game**: clocks, chat, draw offers, takeback requests, resign and rematch.
 - **Replay**: step through the moves with the buttons under the clock, the arrow keys, or by clicking the move list. A finished game has an "Analysis board" link that encodes the whole game in the URL.

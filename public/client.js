@@ -665,8 +665,13 @@
     for (const radio of document.querySelectorAll('#friend-form input[name="cards"]')) {
       radio.addEventListener('change', refresh);
     }
-    for (const opener of [$('create'), $('pool-custom')]) {
+    // The same dialog starts a local game, where one browser plays both sides.
+    let local = false;
+    for (const opener of [$('create'), $('pool-custom'), $('play-local')]) {
       opener.addEventListener('click', () => {
+        local = opener.id === 'play-local';
+        $('friend-title').textContent = local ? 'Play on this device' : 'Play with a friend';
+        $('local-note').hidden = !local;
         refresh();
         $('friend-dialog').showModal();
       });
@@ -674,9 +679,10 @@
     $('friend-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        const { room: code } = await post('', { tc: $('friend-tc').value, cards: custom() ? [...picked] : null });
+        const created = await post('', { tc: $('friend-tc').value, cards: custom() ? [...picked] : null, local });
+        if (created.token) storeToken(created.room, created.token);
         $('friend-dialog').close();
-        enterRoom(code);
+        enterRoom(created.room);
       } catch (err) {
         $('friend-error').textContent = err.message;
       }
@@ -1576,7 +1582,7 @@
   }
 
   function renderInfo() {
-    const mode = snap.rated ? 'Rated' : 'Casual';
+    const mode = snap.rated ? 'Rated' : snap.local ? 'Same device' : 'Casual';
     const event = snap.tournament ? snap.tournament.name : 'Onitama';
     $('info-title').textContent = `${analysis ? 'Analysis • ' : ''}${snap.tc || 'Unlimited'} • ${mode} • ${event}`;
     $('info-players').replaceChildren(
@@ -1588,6 +1594,7 @@
         return row;
       })
     );
+    if (snap.local) for (const el of $('info-players').querySelectorAll('.me')) el.textContent = '';
     const n = snap.spectators;
     $('watchers').textContent = n ? `${n} spectator${n === 1 ? '' : 's'}` : '';
   }
@@ -1775,7 +1782,9 @@
       status.className = 'win';
       status.innerHTML = '<span class="result"></span><span></span>';
       status.children[0].textContent =
-        g.winner === 'draw' ? 'Draw' : !me ? `${nameOf(g.winner)} wins` : g.winner === me ? 'You win!' : 'You lose';
+        g.winner === 'draw'
+          ? 'Draw'
+          : !me || snap.local ? `${nameOf(g.winner)} wins` : g.winner === me ? 'You win!' : 'You lose';
       status.children[1].textContent = resultText(g);
       return;
     }
@@ -1788,6 +1797,7 @@
     else if (snap.offers.draw === me) text = 'Draw offer sent';
     else if (snap.offers.takeback === me) text = 'Takeback request sent';
     else if (stuck) text = 'No legal move — choose a card to give up.';
+    else if (active && snap.local) text = sel.from === null ? `${nameOf(me)} to move — pick a piece and a card.` : 'Choose where to move.';
     else if (active) text = sel.from === null ? 'Your turn — pick a piece and a card.' : 'Choose where to move.';
     else text = "Waiting for your opponent's move…";
     if (offline || hint) status.className = 'warn';
@@ -1806,8 +1816,12 @@
 
     const takeback = $('takeback');
     takeback.hidden = !playing;
-    takeback.disabled = playing && (snap.offers.takeback === me || g.history.length - (g.turn === me ? 2 : 1) < 0);
+    takeback.disabled = playing && (snap.local
+      ? !g.history.length
+      : snap.offers.takeback === me || g.history.length - (g.turn === me ? 2 : 1) < 0);
+    takeback.title = snap.local ? 'Take back the last move' : 'Ask to take back your last move';
     const draw = $('draw');
+    draw.title = snap.local ? 'End the game as a draw' : 'Offer a draw';
     draw.hidden = !playing;
     draw.disabled = playing && snap.offers.draw === me;
     const resign = $('resign');
@@ -1854,7 +1868,7 @@
 
     // Spare card faces whoever picks it up next, i.e. the player about to move.
     $('spare').replaceChildren(cardEl(shown.spare, 'neutral', shown.turn !== view, null));
-    const next = !me ? nameOf(shown.turn) : shown.turn === me ? 'you' : 'your opponent';
+    const next = !me || snap.local ? nameOf(shown.turn) : shown.turn === me ? 'you' : 'your opponent';
     $('spare-label').textContent = shown.winner ? '' : `Goes to ${next} after this move`;
 
     renderBoard(shown, view, active);
@@ -1865,8 +1879,8 @@
 
     $('share').hidden = !(waiting && me);
     $('replay').hidden = $('moves-scroll').hidden = waiting;
-    $('chat-form').hidden = !me;
-    document.title = analysis ? 'Analysis — Onitama' : active ? 'Your turn — Onitama' : 'Onitama';
+    $('chat-form').hidden = !me || snap.local;
+    document.title = analysis ? 'Analysis — Onitama' : active && !snap.local ? 'Your turn — Onitama' : 'Onitama';
   }
 
   // ---------- start ----------

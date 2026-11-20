@@ -41,6 +41,7 @@ The words used in the code, the API and the UI. When a word has a specific name 
 | Quick pairing | Clicking a time control in the lobby. You wait in a pool and are matched with the next player who picks the same one. |
 | Seek, seeker | A player waiting in a quick-pairing pool (`seekers`, `/api/seek`). |
 | Friend game | A game created with "Play with a friend", joined through its invite link. Never rated. |
+| Local game | A game created with "Play on this device": one browser holds both seats with a single token and plays whichever side is to move (`room.local`). A draw or takeback needs no answer, and the game is never rated or listed among live games. |
 | Bot | The computer opponent (`lib/bot.js`), at level easy, medium or hard. Bot games are never rated. |
 | Offer | A request the opponent must answer: a draw or a takeback. |
 | Takeback | Undoing your last move with the opponent's agreement. |
